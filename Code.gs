@@ -2,6 +2,13 @@ var FOLDER_NAME = "CRES Estimates";
 var INDEX_SHEET = "Index";
 var LIBRARY_SHEET = "Library";
 
+// ===== INTERNAL VIEW (new) =====
+// Index columns 9 & 10 hold the separate Internal (vendor) costing file per event.
+var IDX_INTERNAL_ID_COL = 9;   // I: InternalFileID
+var IDX_INTERNAL_URL_COL = 10; // J: InternalURL
+var LIB_GUIDE_COL = 4;         // D: How to fill
+var SNAPSHOT_CHUNK = 45000;    // a Sheets cell holds max 50,000 chars
+
 // Default library (used first time setupLibrary is run)
 var DEFAULT_LIBRARY = [
   { name: "Venues", subs: [
@@ -131,7 +138,48 @@ function setup() {
     idx.setColumnWidth(6, 280);
   }
   setupLibrary_();
+  ensureIndexInternalCols_();
+  ensureLibraryGuideCol_();
   Browser.msgBox("Setup complete. Folder ready: " + folder.getName());
+}
+
+// Adds "InternalFileID" / "InternalURL" headers to Index if missing (safe to run many times)
+function ensureIndexInternalCols_() {
+  var idx = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(INDEX_SHEET);
+  if (!idx) return;
+  var h = idx.getRange(1, IDX_INTERNAL_ID_COL, 1, 2).getValues()[0];
+  if (h[0] !== "InternalFileID" || h[1] !== "InternalURL") {
+    idx.getRange(1, IDX_INTERNAL_ID_COL, 1, 2).setValues([["InternalFileID", "InternalURL"]])
+      .setFontWeight("bold").setBackground("#0f3d3e").setFontColor("white");
+    idx.setColumnWidth(IDX_INTERNAL_ID_COL, 280);
+    idx.setColumnWidth(IDX_INTERNAL_URL_COL, 280);
+  }
+}
+
+// Adds "How to fill" header to Library column D if missing
+function ensureLibraryGuideCol_() {
+  var lib = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(LIBRARY_SHEET);
+  if (!lib) return;
+  if (lib.getRange(1, LIB_GUIDE_COL).getValue() !== "How to fill") {
+    lib.getRange(1, LIB_GUIDE_COL).setValue("How to fill")
+      .setFontWeight("bold").setBackground("#10243e").setFontColor("white");
+    lib.setColumnWidth(LIB_GUIDE_COL, 420);
+  }
+}
+
+// Map of "category|subsection|item" (lowercase) -> guide text, read from Library col D
+function readGuideMap_(lib) {
+  var map = {};
+  if (!lib || lib.getLastRow() < 2) return map;
+  var data = lib.getRange(2, 1, lib.getLastRow() - 1, LIB_GUIDE_COL).getValues();
+  data.forEach(function(r) {
+    var g = String(r[3] || "").trim();
+    if (g) map[guideKey_(r[0], r[1], r[2])] = g;
+  });
+  return map;
+}
+function guideKey_(cat, sub, item) {
+  return [cat, sub, item].map(function(s) { return String(s || "").trim().toLowerCase(); }).join("|");
 }
 
 // =================== LIBRARY ===================
@@ -176,27 +224,30 @@ function resetLibrary() {
     Browser.msgBox("Library tab created with default template.");
     return;
   }
-  // Clear existing rows (except header)
+  // Keep existing "How to fill" text so a reset does not lose it
+  var guideMap = readGuideMap_(lib);
+  // Clear existing rows (except header) — columns A..D so guides stay aligned
   var lastRow = lib.getLastRow();
   if (lastRow > 1) {
-    lib.getRange(2, 1, lastRow - 1, 3).clearContent();
+    lib.getRange(2, 1, lastRow - 1, LIB_GUIDE_COL).clearContent();
   }
   // Write fresh from DEFAULT_LIBRARY
   var rows = [];
   DEFAULT_LIBRARY.forEach(function(cat) {
     cat.subs.forEach(function(sub) {
       if (sub.items.length === 0) {
-        rows.push([cat.name, sub.title, ""]);
+        rows.push([cat.name, sub.title, "", ""]);
       } else {
         sub.items.forEach(function(item) {
-          rows.push([cat.name, sub.title, item]);
+          rows.push([cat.name, sub.title, item, guideMap[guideKey_(cat.name, sub.title, item)] || ""]);
         });
       }
     });
   });
   if (rows.length > 0) {
-    lib.getRange(2, 1, rows.length, 3).setValues(rows);
+    lib.getRange(2, 1, rows.length, LIB_GUIDE_COL).setValues(rows);
   }
+  ensureLibraryGuideCol_();
   Browser.msgBox("Library reset. " + rows.length + " rows written.");
 }
 
@@ -204,7 +255,9 @@ function getLibrary_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var lib = ss.getSheetByName(LIBRARY_SHEET);
   if (!lib || lib.getLastRow() < 2) return { categories: [] };
-  var data = lib.getRange(2, 1, lib.getLastRow() - 1, 3).getValues();
+  // Columns A..D (D = "How to fill" guide; blank if not filled)
+  var nCols = Math.max(3, Math.min(LIB_GUIDE_COL, lib.getLastColumn()));
+  var data = lib.getRange(2, 1, lib.getLastRow() - 1, nCols).getValues();
 
   var cats = {};
   var order = [];
@@ -212,16 +265,17 @@ function getLibrary_() {
     var cat = String(r[0] || "").trim();
     var sub = String(r[1] || "").trim(); // blank means "direct items"
     var item = String(r[2] || "").trim();
+    var guide = nCols >= LIB_GUIDE_COL ? String(r[3] || "").trim() : "";
     if (!cat) return;
     if (!cats[cat]) { cats[cat] = { name: cat, subOrder: [], subs: {} }; order.push(cat); }
     if (!cats[cat].subs[sub]) { cats[cat].subs[sub] = { title: sub, items: [] }; cats[cat].subOrder.push(sub); }
-    if (item) cats[cat].subs[sub].items.push(item);
+    if (item) cats[cat].subs[sub].items.push({ name: item, guide: guide });
   });
   var result = order.map(function(c) {
     return {
       name: c,
       subs: cats[c].subOrder.map(function(s) {
-        return { title: s, items: cats[c].subs[s].items.map(function(i){ return { name: i }; }) };
+        return { title: s, items: cats[c].subs[s].items.map(function(i){ return { name: i.name, guide: i.guide }; }) };
       })
     };
   });
@@ -291,20 +345,21 @@ function reorderLibrary_(payload) {
   if (!lib) return { status: "error", message: "Library not set up" };
 
   var newLib = payload.library || [];
+  var guideMap = readGuideMap_(lib); // keep "How to fill" text attached to its item
   var rows = [];
   newLib.forEach(function(cat) {
     (cat.subs || []).forEach(function(sub) {
       (sub.items || []).forEach(function(item) {
         var itemName = typeof item === "string" ? item : (item.name || "");
-        rows.push([cat.name, sub.title, itemName]);
+        rows.push([cat.name, sub.title, itemName, guideMap[guideKey_(cat.name, sub.title, itemName)] || ""]);
       });
     });
   });
 
-  // Clear existing (except header) and write fresh
+  // Clear existing (except header) and write fresh — A..D so guides stay aligned
   var lastRow = lib.getLastRow();
-  if (lastRow > 1) lib.getRange(2, 1, lastRow - 1, 3).clearContent();
-  if (rows.length > 0) lib.getRange(2, 1, rows.length, 3).setValues(rows);
+  if (lastRow > 1) lib.getRange(2, 1, lastRow - 1, LIB_GUIDE_COL).clearContent();
+  if (rows.length > 0) lib.getRange(2, 1, rows.length, LIB_GUIDE_COL).setValues(rows);
 
   return { status: "success", rowsWritten: rows.length };
 }
@@ -362,7 +417,10 @@ function getVersion_(eventId, version) {
   // (simpler: read from a hidden tab _Data_<version>)
   var dataSheet = ss.getSheetByName("_Data_" + version);
   if (dataSheet) {
-    var raw = dataSheet.getRange(1, 1).getValue();
+    // Snapshot may be split across A1, A2, ... (long events); old files only have A1
+    var n = Math.max(1, dataSheet.getLastRow());
+    var raw = dataSheet.getRange(1, 1, n, 1).getValues()
+      .map(function(r) { return String(r[0] || ""); }).join("");
     try {
       return JSON.parse(raw);
     } catch (e) {}
@@ -409,6 +467,15 @@ function deleteVersion_(payload) {
   var dataSheet = ss.getSheetByName("_Data_" + version);
   if (dataSheet) ss.deleteSheet(dataSheet);
 
+  // Internal file: remove the same version tab (never the last remaining tab)
+  try {
+    var iss = openInternalFile_(payload.eventId);
+    if (iss) {
+      var isheet = iss.getSheetByName(version);
+      if (isheet && iss.getSheets().length > 1) iss.deleteSheet(isheet);
+    }
+  } catch (e) {}
+
   // Recompute latest V and update Index
   var remaining = ss.getSheets()
     .map(function(s) { return s.getName(); })
@@ -428,6 +495,12 @@ function deleteEvent_(payload) {
   // Move file to Trash (30-day recovery)
   var file = DriveApp.getFileById(info.fileId);
   file.setTrashed(true);
+
+  // Internal file goes to Trash too
+  var intInfo = findInternalFile_(payload.eventId);
+  if (intInfo && intInfo.fileId) {
+    try { DriveApp.getFileById(intInfo.fileId).setTrashed(true); } catch (e) {}
+  }
 
   // Remove from Index
   removeFromIndex_(payload.eventId);
@@ -472,13 +545,15 @@ function createEvent_(payload) {
 
   // Create V1
   var version = "V1";
-  writeVersion_(newSS, version, payload);
+  writeVersion_(newSS, version, clientPayload_(payload));
+  writeSnapshot_(newSS, version, payload); // full payload (client + internal) for reloading
   newSS.deleteSheet(defaultSheet);
 
   var eventId = "EVT-" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd-HHmmss");
   appendToIndex_(eventId, payload.header, newSS.getId(), newSS.getUrl(), version);
 
-  return { status: "success", eventId: eventId, version: version, sheetUrl: newSS.getUrl() };
+  var internalUrl = writeInternal_(eventId, version, payload);
+  return { status: "success", eventId: eventId, version: version, sheetUrl: newSS.getUrl(), internalUrl: internalUrl };
 }
 
 function updateCurrent_(payload) {
@@ -493,9 +568,11 @@ function updateCurrent_(payload) {
   var dataSheet = ss.getSheetByName("_Data_" + version);
   if (dataSheet) ss.deleteSheet(dataSheet);
 
-  writeVersion_(ss, version, payload);
+  writeVersion_(ss, version, clientPayload_(payload));
+  writeSnapshot_(ss, version, payload);
   updateIndex_(payload.eventId, payload.header, version);
-  return { status: "success", eventId: payload.eventId, version: version, sheetUrl: ss.getUrl() };
+  var internalUrl = writeInternal_(payload.eventId, version, payload);
+  return { status: "success", eventId: payload.eventId, version: version, sheetUrl: ss.getUrl(), internalUrl: internalUrl };
 }
 
 function saveAsNew_(payload) {
@@ -510,9 +587,345 @@ function saveAsNew_(payload) {
   });
   var newVersion = "V" + (maxV + 1);
 
-  writeVersion_(ss, newVersion, payload);
+  writeVersion_(ss, newVersion, clientPayload_(payload));
+  writeSnapshot_(ss, newVersion, payload);
   updateIndex_(payload.eventId, payload.header, newVersion);
-  return { status: "success", eventId: payload.eventId, version: newVersion, sheetUrl: ss.getUrl() };
+  var internalUrl = writeInternal_(payload.eventId, newVersion, payload);
+  return { status: "success", eventId: payload.eventId, version: newVersion, sheetUrl: ss.getUrl(), internalUrl: internalUrl };
+}
+
+// =================== INTERNAL VIEW (new) ===================
+// Payload from the portal: each line item / logistics row carries the client values
+// (as before) plus `hasClient` and an optional `internal` block with the vendor values.
+// `internalSummary` holds the internal view's fee / hotel / tax settings.
+
+// Client sheet gets only rows that have client values (rows filled only in the
+// internal view are skipped), without the internal block.
+function clientPayload_(p) {
+  var out = {};
+  Object.keys(p).forEach(function(k) { out[k] = p[k]; });
+  out.lineItems = (p.lineItems || []).filter(function(li) { return li.hasClient !== false; })
+    .map(stripInternal_);
+  out.logistics = (p.logistics || []).filter(function(lg) { return lg.hasClient !== false; })
+    .map(stripInternal_);
+  delete out.internalSummary;
+  return out;
+}
+function stripInternal_(o) {
+  var c = {};
+  Object.keys(o).forEach(function(k) { if (k !== "internal" && k !== "hasClient") c[k] = o[k]; });
+  return c;
+}
+
+// Internal sheet gets the same structure, but with the vendor values.
+function internalPayload_(p) {
+  var lineItems = (p.lineItems || []).filter(function(li) { return li.internal; }).map(function(li) {
+    var r = {
+      dayId: li.dayId, dayLabel: li.dayLabel, dayDate: li.dayDate,
+      category: li.category, subSection: li.subSection, item: li.item, isCustom: li.isCustom
+    };
+    Object.keys(li.internal).forEach(function(k) { r[k] = li.internal[k]; });
+    return r;
+  });
+  var logistics = (p.logistics || []).filter(function(lg) { return lg.internal; }).map(function(lg) {
+    var r = { vehicle: lg.vehicle, route: lg.route };
+    Object.keys(lg.internal).forEach(function(k) { r[k] = lg.internal[k]; });
+    return r;
+  });
+  return { header: p.header || {}, days: p.days || [], lineItems: lineItems, logistics: logistics,
+           summary: p.internalSummary || p.summary || {} };
+}
+
+// Same maths as the portal / client sheet
+function computeTotals_(p) {
+  var subtotal = 0;
+  (p.lineItems || []).forEach(function(li) { subtotal += (Number(li.amount) || 0); });
+  (p.logistics || []).forEach(function(lg) { subtotal += (Number(lg.amount) || 0); });
+  var s = p.summary || {};
+  var taxType = s.taxType || 'igst';
+  var mgmtPct = Number(s.mgmtPct) || 0, hotel = Number(s.hotelCoord) || 0;
+  var igstPct = taxType === 'igst' ? (Number(s.igstPct) || 0) : 0;
+  var sgstPct = taxType === 'cs' ? (Number(s.sgstPct) || 0) : 0;
+  var cgstPct = taxType === 'cs' ? (Number(s.cgstPct) || 0) : 0;
+  var mgmt = subtotal * mgmtPct / 100;
+  var pre = subtotal + mgmt + hotel;
+  var tax = pre * (igstPct + sgstPct + cgstPct) / 100;
+  return { subtotal: subtotal, mgmt: mgmt, pre: pre, tax: tax, grand: pre + tax };
+}
+
+// Writes the version tab into the event's Internal file (creates the file the first time).
+// Returns the Internal file URL ("" if something failed — the client save still stands).
+function writeInternal_(eventId, version, payload) {
+  try {
+    var iss = getOrCreateInternalFile_(eventId, payload.header || {});
+    var old = iss.getSheetByName(version);
+    if (old) {
+      if (iss.getSheets().length === 1) iss.insertSheet("_tmp");
+      iss.deleteSheet(old);
+    }
+    var ip = internalPayload_(payload);
+    var clientTotals = computeTotals_(clientPayload_(payload));
+    writeInternalVersion_(iss, version, ip, clientTotals);
+    // drop the blank default / temp tab once a real version exists
+    iss.getSheets().forEach(function(s) {
+      var n = s.getName();
+      if ((n === "Sheet1" || n === "_tmp") && iss.getSheets().length > 1) iss.deleteSheet(s);
+    });
+    // keep version tabs in order V1, V2, ...
+    var vs = iss.getSheets().filter(function(s) { return /^V\d+$/.test(s.getName()); })
+      .sort(function(a, b) { return parseInt(a.getName().slice(1)) - parseInt(b.getName().slice(1)); });
+    vs.forEach(function(s, i) { iss.setActiveSheet(s); iss.moveActiveSheet(i + 1); });
+    return iss.getUrl();
+  } catch (err) {
+    Logger.log("Internal sheet failed: " + err.message);
+    return "";
+  }
+}
+
+function getOrCreateInternalFile_(eventId, header) {
+  var existing = openInternalFile_(eventId);
+  if (existing) return existing;
+
+  var folder = getOrCreateFolder_();
+  var name = "Internal - " + (header.eventName || "Untitled") + " - " + (header.client || "");
+  var iss = SpreadsheetApp.create(name);
+  var file = DriveApp.getFileById(iss.getId());
+  folder.addFile(file);
+  DriveApp.getRootFolder().removeFile(file);
+
+  ensureIndexInternalCols_();
+  var idx = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(INDEX_SHEET);
+  var data = idx.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] === eventId) {
+      idx.getRange(i + 1, IDX_INTERNAL_ID_COL, 1, 2).setValues([[iss.getId(), iss.getUrl()]]);
+      break;
+    }
+  }
+  return iss;
+}
+
+function openInternalFile_(eventId) {
+  var info = findInternalFile_(eventId);
+  if (!info || !info.fileId) return null;
+  try {
+    var f = DriveApp.getFileById(info.fileId);
+    if (f.isTrashed()) return null;
+    return SpreadsheetApp.openById(info.fileId);
+  } catch (e) { return null; }
+}
+
+function findInternalFile_(eventId) {
+  var idx = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(INDEX_SHEET);
+  if (!idx || idx.getLastRow() < 2 || idx.getLastColumn() < IDX_INTERNAL_ID_COL) return null;
+  var data = idx.getRange(2, 1, idx.getLastRow() - 1, IDX_INTERNAL_URL_COL).getValues();
+  for (var i = 0; i < data.length; i++) {
+    if (data[i][0] === eventId) {
+      return { fileId: data[i][IDX_INTERNAL_ID_COL - 1], url: data[i][IDX_INTERNAL_URL_COL - 1] };
+    }
+  }
+  return null;
+}
+
+// Full JSON snapshot (client + internal) into hidden _Data_<version>, split into
+// 45k-char chunks down column A so long events never hit the 50k cell limit.
+function writeSnapshot_(ss, version, payload) {
+  var name = "_Data_" + version;
+  var existing = ss.getSheetByName(name);
+  if (existing) ss.deleteSheet(existing);
+  var ds = ss.insertSheet(name);
+  var json = JSON.stringify(payload);
+  var chunks = [];
+  for (var i = 0; i < json.length; i += SNAPSHOT_CHUNK) chunks.push([json.substring(i, i + SNAPSHOT_CHUNK)]);
+  if (chunks.length === 0) chunks.push([""]);
+  ds.getRange(1, 1, chunks.length, 1).setNumberFormat("@").setValues(chunks);
+  ds.hideSheet();
+}
+
+// Same layout as the client estimate (writeVersion_) but for vendor / internal costs.
+// No payment terms or bank details; adds a Client vs Internal comparison at the end.
+function writeInternalVersion_(ss, version, payload, clientTotals) {
+  var sheet = ss.insertSheet(version);
+  var row = 1;
+  var NCOL = 11;
+  var DARK = "#0f3d3e", ACCENT = "#d07a2c", BAND = "#f3f8f7";
+
+  sheet.getRange(row, 1, 1, NCOL).merge()
+    .setValue("CRES — INTERNAL COSTING (VENDOR)  (" + version + ")  — NOT FOR CLIENT")
+    .setFontWeight("bold").setFontSize(14).setFontColor("white")
+    .setBackground(DARK).setHorizontalAlignment("center");
+  sheet.setRowHeight(row, 28);
+  row += 2;
+
+  var h = payload.header || {};
+  [
+    ["Company:", h.company || ""],
+    ["Client:", h.client || ""],
+    ["Event:", h.eventName || ""],
+    ["Venue:", h.venue || ""],
+    ["Pax:", h.pax || ""],
+    ["Version:", version],
+    ["Updated:", Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm")]
+  ].forEach(function(pair) {
+    sheet.getRange(row, 1).setValue(pair[0]).setFontWeight("bold");
+    sheet.getRange(row, 2).setValue(pair[1]);
+    row++;
+  });
+  row++;
+
+  var COLS = ["Sr.", "Particulars", "Description", "Size", "Sqft", "Days", "Qty", "Rate", "Amount", "Remark (Client)", "Remark (Doer)"];
+  sheet.getRange(row, 1, 1, COLS.length).setValues([COLS])
+    .setFontWeight("bold").setBackground(DARK).setFontColor("white")
+    .setHorizontalAlignment("center");
+  sheet.setRowHeight(row, 22);
+  row++;
+
+  var byDay = {};
+  (payload.lineItems || []).forEach(function(li) {
+    if (!byDay[li.dayId]) byDay[li.dayId] = [];
+    byDay[li.dayId].push(li);
+  });
+
+  var subtotal = 0;
+  (payload.days || []).forEach(function(d) {
+    var items = byDay[d.id] || [];
+    if (items.length === 0) return;
+
+    sheet.getRange(row, 1, 1, NCOL).merge()
+      .setValue("DAY: " + d.label + (d.date ? " — " + d.date : ""))
+      .setFontWeight("bold").setFontColor("white").setBackground(ACCENT);
+    sheet.setRowHeight(row, 20);
+    row++;
+
+    var byCat = {};
+    items.forEach(function(it) {
+      if (!byCat[it.category]) byCat[it.category] = {};
+      if (!byCat[it.category][it.subSection]) byCat[it.category][it.subSection] = [];
+      byCat[it.category][it.subSection].push(it);
+    });
+
+    var catLetter = 65;
+    var dayTotal = 0;
+    Object.keys(byCat).forEach(function(catName) {
+      sheet.getRange(row, 1, 1, NCOL)
+        .setValues([[String.fromCharCode(catLetter++), catName, "", "", "", "", "", "", "", "", ""]])
+        .setFontWeight("bold").setBackground(BAND);
+      row++;
+      Object.keys(byCat[catName]).forEach(function(subName) {
+        if (subName) {
+          sheet.getRange(row, 2).setValue(subName)
+            .setFontWeight("bold").setFontColor(ACCENT).setFontStyle("italic");
+          row++;
+        }
+        byCat[catName][subName].forEach(function(it) {
+          sheet.getRange(row, 1, 1, NCOL).setValues([[
+            "", it.item, it.description || "", it.size || "",
+            it.sqft || "", it.days || "", it.qty || 0, it.rate || 0, it.amount || 0,
+            it.remarkClient || "", it.remarkDoer || ""
+          ]]);
+          dayTotal += (Number(it.amount) || 0);
+          row++;
+        });
+      });
+    });
+
+    sheet.getRange(row, 2).setValue(d.label + " Total").setFontWeight("bold");
+    sheet.getRange(row, 9).setValue(dayTotal).setFontWeight("bold").setNumberFormat("#,##0");
+    sheet.getRange(row, 1, 1, NCOL).setBackground(BAND);
+    row++;
+    subtotal += dayTotal;
+    row++;
+  });
+
+  if ((payload.logistics || []).length > 0) {
+    sheet.getRange(row, 1, 1, NCOL).merge()
+      .setValue("LOGISTICS")
+      .setFontWeight("bold").setFontColor("white").setBackground(ACCENT);
+    row++;
+    var logTotal = 0;
+    payload.logistics.forEach(function(lg) {
+      var label = (lg.vehicle || "") + (lg.route ? " — " + lg.route : "");
+      sheet.getRange(row, 1, 1, NCOL).setValues([[
+        "", label, "", "", "", "", lg.qty || 0, lg.rate || 0, lg.amount || 0, lg.remarkClient || "", lg.remarkDoer || ""
+      ]]);
+      logTotal += (Number(lg.amount) || 0);
+      row++;
+    });
+    sheet.getRange(row, 2).setValue("Logistics Total").setFontWeight("bold");
+    sheet.getRange(row, 9).setValue(logTotal).setFontWeight("bold").setNumberFormat("#,##0");
+    sheet.getRange(row, 1, 1, NCOL).setBackground(BAND);
+    row++;
+    subtotal += logTotal;
+    row++;
+  }
+
+  // Summary — exactly the client calculation, on internal numbers
+  var s = payload.summary || {};
+  var mgmtPct = Number(s.mgmtPct) || 0, hotel = Number(s.hotelCoord) || 0;
+  var taxType = s.taxType || 'igst';
+  var igstPct = taxType === 'igst' ? (Number(s.igstPct) || 0) : 0;
+  var sgstPct = taxType === 'cs' ? (Number(s.sgstPct) || 0) : 0;
+  var cgstPct = taxType === 'cs' ? (Number(s.cgstPct) || 0) : 0;
+  var mgmt = subtotal * mgmtPct / 100;
+  var preGst = subtotal + mgmt + hotel;
+  var igst = preGst * igstPct / 100;
+  var sgst = preGst * sgstPct / 100;
+  var cgst = preGst * cgstPct / 100;
+  var grand = preGst + igst + sgst + cgst;
+
+  sheet.getRange(row, 1, 1, NCOL).merge()
+    .setValue("INTERNAL SUMMARY")
+    .setFontWeight("bold").setFontColor("white").setBackground(DARK);
+  row++;
+  var sumRows = [
+    ["Subtotal", subtotal],
+    ["Management Fee (" + mgmtPct + "%)", mgmt],
+    ["Hotel Coordination Charges", hotel],
+    ["Sub Total before GST", preGst]
+  ];
+  if (taxType === 'cs') {
+    sumRows.push(["SGST (" + sgstPct + "%)", sgst]);
+    sumRows.push(["CGST (" + cgstPct + "%)", cgst]);
+  } else {
+    sumRows.push(["IGST (" + igstPct + "%)", igst]);
+  }
+  sumRows.forEach(function(p) {
+    sheet.getRange(row, 2).setValue(p[0]);
+    sheet.getRange(row, 9).setValue(p[1]).setNumberFormat("#,##0");
+    row++;
+  });
+  sheet.getRange(row, 2).setValue("GRAND TOTAL (INTERNAL)").setFontWeight("bold").setFontColor("white");
+  sheet.getRange(row, 9).setValue(grand).setFontWeight("bold").setFontColor("white").setNumberFormat("#,##0");
+  sheet.getRange(row, 1, 1, NCOL).setBackground(DARK);
+  sheet.setRowHeight(row, 24);
+  row += 2;
+
+  // Client vs Internal
+  var c = clientTotals || { subtotal: 0, grand: 0 };
+  var marginItems = c.subtotal - subtotal;
+  var marginGrand = c.grand - grand;
+  var pct = function(m, base) { return base ? (m / base) : 0; };
+  sheet.getRange(row, 1, 1, NCOL).merge()
+    .setValue("CLIENT vs INTERNAL")
+    .setFontWeight("bold").setFontColor("white").setBackground(ACCENT);
+  row++;
+  [
+    ["Client Subtotal (items)", c.subtotal, null],
+    ["Internal Subtotal (items)", subtotal, null],
+    ["Margin on items", marginItems, pct(marginItems, c.subtotal)],
+    ["Client Grand Total", c.grand, null],
+    ["Internal Grand Total", grand, null],
+    ["Difference (Grand Total)", marginGrand, pct(marginGrand, c.grand)]
+  ].forEach(function(r) {
+    sheet.getRange(row, 2).setValue(r[0]);
+    sheet.getRange(row, 9).setValue(r[1]).setNumberFormat("#,##0");
+    if (r[2] !== null) sheet.getRange(row, 10).setValue(r[2]).setNumberFormat("0.0%");
+    if (r[2] !== null) sheet.getRange(row, 1, 1, NCOL).setFontWeight("bold");
+    row++;
+  });
+
+  var widths = [6, 32, 22, 18, 8, 8, 8, 12, 14, 20, 20];
+  widths.forEach(function(w, i) { sheet.setColumnWidth(i + 1, w * 8); });
 }
 
 // =================== WRITE VERSION SHEET ===================
@@ -716,13 +1129,8 @@ function writeVersion_(ss, version, payload) {
   var widths = [6, 32, 22, 18, 8, 8, 8, 12, 14, 20, 20];
   widths.forEach(function(w, i) { sheet.setColumnWidth(i + 1, w * 8); });
 
-  // Raw JSON snapshot — reliable round-trip
-  var dataSheetName = "_Data_" + version;
-  var existing = ss.getSheetByName(dataSheetName);
-  if (existing) ss.deleteSheet(existing);
-  var ds = ss.insertSheet(dataSheetName);
-  ds.getRange(1, 1).setValue(JSON.stringify(payload));
-  ds.hideSheet();
+  // Raw JSON snapshot — reliable round-trip (chunked: one cell holds max 50,000 chars)
+  writeSnapshot_(ss, version, payload);
 }
 
 
@@ -770,4 +1178,163 @@ function findEventFile_(eventId) {
 function jsonOut_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// =================== HOW TO FILL (new) ===================
+// Run seedHowToFill() once from the Apps Script editor. It writes guidance into
+// Library column D for every item whose D cell is still empty (it never overwrites
+// text you have edited). To rewrite everything from this list, run seedHowToFillOverwrite().
+// Guidance follows the portal's columns for each category:
+//   Size+Sqft hidden for service categories, Days hidden for Manpower / Artist /
+//   Security / Collaterals / Power Supply, Size shows as "kW" for Power Supply,
+//   Qty shows as "Pax" for Food & Beverage and Permissions, Rental hides only Sqft.
+//   Amount = Days (blank = 1) x Qty x Rate (x Sqft only when the Sqft box is ticked).
+//   Typing in Amount overrides the auto amount; you can type sums like 15000*3.
+var HOW_TO_FILL = {
+  "venues": {
+    "_": "Qty = no. of units, Days = no. of days/nights, Rate = per unit per day.",
+    "single occupancy": "Qty = no. of rooms, Days = no. of nights, Rate = per room per night (single). Write meal plan (CP/MAP) in Description.",
+    "double occupancy": "Qty = no. of rooms, Days = no. of nights, Rate = per room per night (twin sharing). Write meal plan (CP/MAP) in Description.",
+    "triple occupancy": "Qty = no. of rooms, Days = no. of nights, Rate = per room per night (3 sharing). Write meal plan in Description.",
+    "banquets/ballrooms": "Hall name in Description. Qty = 1, Days = event days, Rate = hall rental per day (or 0 if included in F&B MPG)."
+  },
+  "manpower": {
+    "_": "Days column is hidden here: Qty = no. of people x no. of days (e.g. 4 people x 2 days = 8). Rate = per person per day. Shift hours in Description."
+  },
+  "artist & entertainment": {
+    "_": "Days column is hidden: Qty = no. of shows/sets (usually 1). Rate = full fee per show. Set length, language in Description. Artist travel & stay go under Travel, Lodging & Boarding.",
+    "live band / base band": "Qty = 1 per show. Rate = band fee. No. of members & set length in Description. Tech rider goes under Technical > Sound.",
+    "dj (bollywood / english)": "Qty = 1 per night. Rate = DJ fee incl. console if included (say so in Description). Playing hours in Description.",
+    "emcee (male)": "Qty = 1 per event/day. Rate = anchor fee. Language & hours in Description.",
+    "emcee (female)": "Qty = 1 per event/day. Rate = anchor fee. Language & hours in Description.",
+    "dancers": "Qty = no. of acts (or no. of dancers if priced per head — say which in Description). Rate = per act / per dancer.",
+    "singer": "Qty = no. of sets. Rate = fee per set. Accompanists & set length in Description."
+  },
+  "fabrication": {
+    "_": "Size = W x H in ft (e.g. 20ft*10ft) -> Sqft fills itself. Tick the Sqft box when the rate is per sqft. Qty = no. of units. Days blank = 1 (one-time build).",
+    "platform for stage": "Size = W x D in ft (e.g. 40ft*24ft), height in Description. Tick Sqft box, Rate = per sqft. Qty = 1.",
+    "skirting for stage": "Size = running length x height (e.g. 88ft*3ft). Tick Sqft box, Rate = per sqft. Qty = 1.",
+    "led riser": "Size = W x D in ft. Tick Sqft box if rate per sqft, else Qty = 1 and Rate = lump sum.",
+    "steps": "Qty = no. of step sets. Rate = per set. Width in Description.",
+    "podium": "Qty = no. of podiums. Rate = per podium incl. branding (say so in Description).",
+    "standees": "Size = W x H in ft (e.g. 3ft*6ft). Qty = no. of standees. Rate = per standee (leave Sqft box unticked) or per sqft (tick it).",
+    "carpet for pathway": "Size = length x width in ft. Tick Sqft box, Rate = per sqft. Colour in Description.",
+    "registration backdrop": "Size = W x H in ft (e.g. 12ft*8ft). Tick Sqft box if rate per sqft. Qty = 1."
+  },
+  "technical": {
+    "_": "Size/Sqft are hidden here. Qty = no. of units, Days = no. of show days (blank = 1), Rate = per unit per day. Model/spec in Description.",
+    "main led wall": "Write size in Description (e.g. 24ft x 12ft, P2.9). Qty = total sqft (24x12 = 288), Rate = per sqft per day, Days = show days.",
+    "side screen": "Size in Description. Qty = total sqft of all side screens, Rate = per sqft per day, Days = show days.",
+    "comfort plasma": "Qty = no. of TVs, Rate = per TV per day, screen size (55\"/65\") in Description.",
+    "timer plasma": "Qty = no. of TVs, Rate = per TV per day, screen size in Description.",
+    "tops (jbl vrx)": "Qty = no. of boxes, Days = show days, Rate = per box per day.",
+    "cordless mics": "Qty = no. of mics, Days = show days, Rate = per mic per day.",
+    "cabling and technicians": "Qty = 1 (lump sum) or no. of technicians, Days = show days, Rate accordingly.",
+    "tech rider for band": "Qty = 1, Rate = lump sum as per band's rider. Attach/mention rider in Remark (Doer).",
+    "light technician & operator": "Qty = no. of people, Days = show days, Rate = per person per day.",
+    "operator": "Qty = no. of operators, Days = show days, Rate = per operator per day.",
+    "front goal post": "Qty = 1 set (span x height in Description), Days = show days, Rate = per set.",
+    "box truss": "Qty = running feet, Days = show days, Rate = per ft. Layout in Description.",
+    "t truss": "Qty = no. of T-truss, Days = show days, Rate = per truss per day."
+  },
+  "sfx (special effects)": {
+    "_": "Qty = no. of units/machines (or no. of shots), Days = show days, Rate = per unit per day. Cue / timing in Remark (Doer).",
+    "pyros": "Qty = no. of shots/pieces, Rate = per shot. Venue permission needed — note in Remark (Doer).",
+    "fire show": "Qty = 1 act, Rate = per act. Fire NOC & venue OK needed.",
+    "fire extinguisher": "Qty = no. of cylinders, Days = event days, Rate = per cylinder."
+  },
+  "security and safety": {
+    "_": "Days column is hidden: Qty = no. of guards x no. of shifts/days (e.g. 6 x 2 = 12). Rate = per guard per shift (8/12 hrs — write in Description)."
+  },
+  "permission and liscences": {
+    "_": "Pax column = no. of guests (licence slabs depend on pax). If the fee is fixed, put Pax = 1 and the full fee in Rate. Days blank = 1.",
+    "iprs": "Fee depends on pax & event type: Pax = guest count with Rate per pax, or Pax = 1 with total fee in Rate.",
+    "ppl": "Fee depends on pax & event type: Pax = guest count with Rate per pax, or Pax = 1 with total fee in Rate.",
+    "novex": "Pax = 1, Rate = licence fee quoted by Novex (based on pax/area).",
+    "police intimation": "Pax = 1, Rate = fee + liaisoning charge.",
+    "foreign artist noc (mantralaya)": "Pax = 1, Rate = NOC fee + liaisoning. Start early — note lead time in Remark (Doer).",
+    "fire brigade noc": "Pax = 1, Rate = NOC fee + liaisoning."
+  },
+  "food and beverage": {
+    "_": "Pax = no. of guests, Days = no. of days this meal is served, Rate = per person per meal (taxes as per venue). Menu in Description.",
+    "per plate charges": "Pax = guaranteed covers (MPG), Days = event days, Rate = per plate. Veg/non-veg split in Description.",
+    "cocktail per person (imfs / imported)": "Pax = no. of drinking guests, Rate = per person for the bar duration. Hours & brands in Description.",
+    "bartender": "Pax = no. of bartenders, Days = event days, Rate = per bartender per day.",
+    "bar equipment": "Pax = 1 set, Rate = lump sum. List items in Description.",
+    "buffet / table setup": "Pax = no. of counters/tables, Days = event days, Rate = per counter per day."
+  },
+  "power supply": {
+    "_": "kW = capacity, Qty = no. of units, Rate = per unit. Days column is hidden — fold days into Qty or Rate.",
+    "generator": "kW = genset capacity (e.g. 125). Days column is hidden: Qty = no. of gensets x days. Rate = per set per day; write if diesel is extra in Remark.",
+    "inhouse power (venue charges)": "Qty = units/hours as billed by venue, Rate = per unit. Or Qty = 1 with lump sum.",
+    "cabling": "Qty = 1, Rate = lump sum (or running metres in Qty).",
+    "power socket": "Leave kW blank. Qty = no. of points, Rate = per point.",
+    "wire managers": "Leave kW blank. Qty = no. of pieces / running ft, Rate = per piece / per ft.",
+    "fire extinguisher": "Leave kW blank. Qty = no. of cylinders, Rate = per cylinder."
+  },
+  "collaterals": {
+    "_": "Qty = no. of pieces, Rate = per piece. Size / material / print in Description. Days column is hidden."
+  },
+  "rental": {
+    "_": "Qty = no. of units, Days = no. of rental days (blank = 1), Rate = per unit per day. Size is optional (e.g. table size).",
+    "plastic chairs": "Qty = no. of chairs (with covers? say in Description), Days = rental days, Rate = per chair.",
+    "round table": "Qty = no. of tables, size in Size (e.g. 5ft dia), Days = rental days, Rate = per table.",
+    "portable ac": "Qty = no. of units (tonnage in Size/Description), Days = rental days, Rate = per unit per day."
+  },
+  "hampers and giveaway": {
+    "_": "Qty = no. of pieces (usually = pax), Rate = per piece incl. branding. Leave Days blank. Spec & branding in Description."
+  },
+  "event coverage": {
+    "_": "Qty = no. of people/cameras, Days = shoot days, Rate = per person per day. Deliverables in Description.",
+    "montage / highlight video": "Qty = no. of videos, Rate = per video. Duration & delivery date in Description.",
+    "online editor with setup": "Qty = 1, Days = event days, Rate = per day incl. setup.",
+    "drone camera": "Qty = 1, Days = shoot days, Rate = per day. Venue/police permission note in Remark (Doer)."
+  },
+  "activities": {
+    "_": "Qty = no. of booths/activities, Days = event days, Rate = per booth per day (say if prints are included in Description)."
+  },
+  "communication": {
+    "_": "Qty = no. of sets/people, Days = event days, Rate = per set per day."
+  },
+  "misc & transport": {
+    "_": "Usually a lump sum: Qty = 1, Rate = estimated amount. Write the break-up in Description.",
+    "truck": "Qty = no. of trips/trucks, Rate = per trip. Route & size in Description.",
+    "tbl (team stay + food)": "Qty = no. of people x nights, Rate = per person per night incl. food.",
+    "crew food / promoters / hostess": "Qty = no. of meals (people x meals x days), Rate = per meal."
+  },
+  "awards & recognition": {
+    "_": "Qty = no. of pieces, Rate = per piece. Design/engraving in Description. Leave Days blank."
+  },
+  "travel, lodging & boarding": {
+    "_": "Qty = no. of people (or trips), Days = no. of nights/days where relevant, Rate = per person per trip/night. Route & mode in Description.",
+    "travel of artists": "Qty = no. of tickets, Rate = per ticket (flight/train, class in Description). Leave Days blank.",
+    "lodging for artist & food": "Qty = no. of rooms, Days = no. of nights, Rate = per room per night incl. food."
+  }
+};
+
+function seedHowToFill() { seedHowToFill_(false); }
+function seedHowToFillOverwrite() { seedHowToFill_(true); }
+
+function seedHowToFill_(overwrite) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var lib = ss.getSheetByName(LIBRARY_SHEET);
+  if (!lib || lib.getLastRow() < 2) { Browser.msgBox("Library sheet not found / empty."); return; }
+  ensureLibraryGuideCol_();
+  var n = lib.getLastRow() - 1;
+  var data = lib.getRange(2, 1, n, LIB_GUIDE_COL).getValues();
+  var written = 0;
+  var out = data.map(function(r) {
+    var cat = String(r[0] || "").trim().toLowerCase();
+    var item = String(r[2] || "").trim().toLowerCase();
+    var current = String(r[3] || "").trim();
+    if (!item) return [current];
+    if (current && !overwrite) return [current];
+    var g = HOW_TO_FILL[cat];
+    var text = g ? (g[item] || g["_"] || "") : "";
+    if (!text) text = "Qty = no. of units, Days = no. of days (blank = 1), Rate = per unit per day. Details in Description.";
+    if (text !== current) written++;
+    return [text];
+  });
+  lib.getRange(2, LIB_GUIDE_COL, n, 1).setValues(out);
+  Browser.msgBox("How to fill: " + written + " cells written.");
 }

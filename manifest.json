@@ -1,9 +1,9 @@
 {
-  "name": "CRES Portal",
-  "short_name": "CRES Portal",
+  "name": "CRES Portal (Internal View)",
+  "short_name": "CRES Internal",
   "description": "Creative Rays Entertainment Solutions — Internal Event Estimate Portal",
-  "start_url": "/CRES-TRIAL-PORTAL/",
-  "scope": "/CRES-TRIAL-PORTAL/",
+  "start_url": "/CRES-Portal-Internal/",
+  "scope": "/CRES-Portal-Internal/",
   "display": "standalone",
   "background_color": "#f6f3ec",
   "theme_color": "#10243e",
