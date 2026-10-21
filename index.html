@@ -430,6 +430,10 @@ function attachAmountCalc(inp, tr){
   if(!inp) return;
   const run = ()=>{
     const raw = inp.value;
+    // Only a value the user actually typed counts as a manual amount. Just clicking or
+    // tabbing through the box must not freeze the auto amount (fix: it used to lock it).
+    if(tr.dataset.amtTyped !== "1"){ recalc(); return; }
+    tr.dataset.amtTyped = "0";
     if(/[+\-*/xX()]/.test(raw)){          // looks like a calculation
       const v = evalAmount(raw);
       if(v!=null) inp.value = v;           // replace expr with result
@@ -437,6 +441,7 @@ function attachAmountCalc(inp, tr){
     tr.dataset.manualAmt = (inp.value||"").trim()!=="" ? "1" : "0";
     recalc();
   };
+  inp.addEventListener('input', ()=>{ tr.dataset.amtTyped = "1"; });
   inp.addEventListener('blur', run);
   inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); run(); inp.blur(); } });
 }
