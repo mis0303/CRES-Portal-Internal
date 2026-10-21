@@ -1,0 +1,1988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRES Portal — Event Estimate</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#10243e">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<style>
+  :root{
+    --navy:#10243e; --navy-deep:#0a1830; --gold:#c89b3c; --gold-soft:#e8d9b5;
+    --paper:#f6f3ec; --ink:#1c2430; --muted:#6b7280; --line:#dfd9c9;
+    --ok:#1e7a4c; --err:#b3261e; --radius:10px;
+    font-family:"Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-size:15px;}
+  @media (max-width:760px){ body{font-size:16px;} }
+  .topbar{background:var(--navy); color:white; padding:16px 24px;}
+  .topbar .mark{font-weight:700; font-size:22px;}
+  .topbar .sub{font-size:12px; color:var(--gold-soft); letter-spacing:1.5px; text-transform:uppercase;}
+  .container{max-width:1100px; margin:0 auto; padding:24px 18px 60px;}
+  .hint-banner{background:#fff8e8; border:1px solid var(--gold-soft); border-radius:8px; padding:10px 14px; font-size:12.5px; color:#6b5512; margin-bottom:18px;}
+
+  .mode-tabs{display:flex; gap:8px; margin-bottom:18px;}
+  .mode-tab{flex:1; text-align:center; padding:13px; border-radius:8px; border:1px solid var(--line); background:white; cursor:pointer; font-weight:600; font-size:14px; color:var(--muted);}
+  .mode-tab.active{background:var(--navy); color:white; border-color:var(--navy);}
+
+  .picker-card{background:white; border:1px solid var(--line); border-radius:var(--radius); padding:18px; margin-bottom:18px;}
+  .form-card{background:white; border:1px solid var(--line); border-radius:var(--radius); padding:20px; margin-bottom:16px;}
+  .form-card h3{margin:0 0 14px; font-size:17px; color:var(--navy);}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:13px; font-weight:600; margin-bottom:5px;}
+  input, select{width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:6px; font-size:15px; background:var(--paper); color:var(--ink); font-family:inherit;}
+  input:focus, select:focus{outline:2px solid var(--gold); outline-offset:1px; background:white;}
+  .row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  @media (max-width:680px){.row3, .row2{grid-template-columns:1fr;}}
+
+  .day-tabs{display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; align-items:center;}
+  .day-tab{padding:9px 16px; border:1px solid var(--line); background:white; border-radius:6px; cursor:pointer; font-size:14px; font-weight:600; color:var(--muted); display:flex; align-items:center; gap:6px;}
+  .day-tab.active{background:var(--navy); color:white; border-color:var(--navy);}
+  .day-tab .x{font-size:11px; opacity:0.7;}
+  .add-day-btn{padding:8px 12px; border:1px dashed var(--gold); background:transparent; border-radius:6px; cursor:pointer; font-size:12px; color:var(--navy); font-weight:600;}
+
+  .category{border:1px solid var(--line); border-radius:8px; margin-bottom:10px; background:white; overflow:hidden;}
+  .cat-header{padding:14px 18px; background:#fafaf6; cursor:pointer; display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:15.5px; color:var(--navy); border-left:4px solid var(--gold);}
+  .cat-header .right{display:flex; gap:14px; align-items:center;}
+  .cat-header .cat-total{font-size:13.5px; color:var(--muted); font-weight:600;}
+  .cat-header .chev{font-size:11px; color:var(--muted); transition:transform 0.15s;}
+  .cat-body{display:none; padding:8px 12px 12px;}
+  .category.open .cat-body{display:block;}
+  .category.open .chev{transform:rotate(90deg);}
+
+  .subsection{margin-top:6px; padding:6px 4px 2px; border-top:1px dashed var(--line);}
+  .subsection:first-child{border-top:none;}
+  .subsection-title{font-size:12.5px; font-weight:700; color:var(--gold); text-transform:uppercase; letter-spacing:0.6px; margin:6px 4px 8px; display:flex; align-items:center; gap:6px; cursor:pointer;}
+  .subsection-title .sub-title-display{flex:0 0 auto;}
+  .subsection-title .sub-chev{font-size:10px; color:var(--muted); transition:transform 0.15s;}
+  .subsection-title .drag-handle{
+    cursor:grab; color:var(--muted); font-weight:900; font-size:14px;
+    padding:0 3px; user-select:none; letter-spacing:-2px;
+  }
+  .subsection-title .drag-handle:active{cursor:grabbing;}
+  .subsection.open .sub-chev{transform:rotate(90deg);}
+  .subsection .item-table,
+  .subsection .add-item-btn{display:none;}
+  .subsection.open .item-table{display:table;}
+  .subsection.open .add-item-btn{display:inline-block;}
+
+  .item-table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  .item-table th{text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.4px; color:var(--muted); padding:7px 4px; border-bottom:1px solid var(--line); font-weight:600;}
+  .item-table td{padding:6px 4px; border-bottom:1px solid #f0eada; vertical-align:middle;}
+  .item-table .item-name{font-size:13.5px; font-weight:600; min-width:160px;}
+  .item-table input{padding:7px 9px; font-size:14px;}
+  .item-table .amount-cell{font-size:13.5px; text-align:right; white-space:nowrap; color:var(--muted); font-weight:600;}
+  .item-table tr.has-value{background:#fbf8f0;}
+  .item-table tr.has-value .item-name, .item-table tr.has-value .amount-cell{color:var(--navy);}
+  .c-desc{width:16%;} .c-size{width:13%;} .c-sqft{width:10%;} .c-days{width:6%;} .c-qty{width:6%;} .c-rate{width:10%;} .c-amt{width:11%;}
+
+  /* ===== NEW: Human/service categories — hide Size, Sqft (and Days for manpower/artist) ===== */
+  .item-table.no-size th.c-size, .item-table.no-size td.c-size,
+  .item-table.no-size th.c-sqft, .item-table.no-size td.c-sqft{display:none;}
+  .item-table.no-sqft th.c-sqft, .item-table.no-sqft td.c-sqft{display:none;}
+  .item-table.no-days th.c-days, .item-table.no-days td.c-days{display:none;}
+
+  /* ===== NEW: Remark column + editable Amount input ===== */
+  .c-remark{width:11%;}
+  .item-table td.c-remark input{width:100%; padding:7px 9px; font-size:14px;}
+  .item-table td.amount-cell input.f-amount{width:100%; padding:7px 9px; font-size:14px; text-align:right; font-weight:600; color:var(--navy);}
+  .item-table td.amount-cell input.f-amount::placeholder{color:var(--muted); font-weight:400; font-style:italic;}
+
+  /* ===== NEW: Tax type selector ===== */
+  .tax-type-row label{margin-right:18px; font-weight:600; cursor:pointer; font-size:14px; display:inline-flex; align-items:center;}
+  .tax-type-row input[type=radio]{width:auto; margin:0 6px 0 0; padding:0; cursor:pointer;}
+  .sum-input:disabled{opacity:0.4; cursor:not-allowed; background:#ececec;}
+
+  @media (max-width:760px){
+    .item-table thead{display:none;}
+    .item-table, .item-table tbody, .item-table tr, .item-table td{display:block; width:100%;}
+    .item-table tr{border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:8px; background:white;}
+    .item-table tr.has-value{background:#fbf8f0;}
+    .item-table td{border:none; padding:4px 0;}
+    .item-table td:before{content:attr(data-label); font-size:11.5px; text-transform:uppercase; color:var(--muted); font-weight:600; display:block; margin-bottom:3px;}
+    .item-table .item-name:before{display:none;}
+    .item-table .amount-cell{text-align:left;}
+    .item-table td.amount-cell input.f-amount{text-align:left;}
+  }
+
+  .day-summary{margin-top:10px; padding:12px 18px; background:var(--navy); color:white; border-radius:8px; display:flex; justify-content:space-between; font-size:15px; font-weight:600;}
+
+  .summary-card{background:white; border:2px solid var(--navy); border-radius:var(--radius); padding:22px;}
+  .summary-card h3{margin:0 0 16px; font-size:17px; color:var(--navy);}
+  .sum-row{display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px dashed var(--line); font-size:14.5px;}
+  .sum-row:last-child{border-bottom:none;}
+  .sum-row.grand{margin-top:8px; padding-top:14px; border-top:2px solid var(--navy); font-size:18px; font-weight:700; color:var(--navy);}
+  .sum-input{width:90px; padding:5px 7px; font-size:13px; text-align:right;}
+
+  .actions{margin-top:18px; display:flex; gap:10px; flex-wrap:wrap;}
+  .btn{flex:1; min-width:140px; padding:14px; border-radius:8px; font-size:15px; font-weight:600; cursor:pointer; border:none;}
+  .btn-primary{background:var(--navy); color:white;}
+  .btn-primary:hover{background:var(--navy-deep);}
+  .btn-secondary{background:white; color:var(--navy); border:1px solid var(--navy);}
+  .btn:disabled{opacity:0.6; cursor:default;}
+
+  .status{margin-top:14px; font-size:13px; padding:10px 12px; border-radius:8px; display:none;}
+  .status.ok{display:block; background:#e7f4ec; color:var(--ok); border:1px solid #bfe3cc;}
+  .status.err{display:block; background:#fbe9e7; color:var(--err); border:1px solid #f3c6c0;}
+  .status.info{display:block; background:#eef2f9; color:var(--navy); border:1px solid #cdd9ec;}
+  .status a{color:var(--navy); font-weight:600;}
+
+  footer{text-align:center; font-size:11px; color:var(--muted); padding:18px;}
+  .day-pane{display:none;} .day-pane.active{display:block;}
+  .version-tag{display:inline-block; padding:2px 8px; background:var(--gold-soft); color:#6b5512; border-radius:4px; font-size:11px; font-weight:700; margin-left:8px;}
+
+  .add-item-btn{
+    margin:8px 4px 12px; padding:7px 14px; background:transparent; border:1px dashed var(--gold);
+    color:var(--navy); border-radius:6px; cursor:pointer; font-size:12.5px; font-weight:600;
+  }
+  .add-item-btn:hover{background:#fff8e8;}
+  .row-remove{
+    display:inline-block; margin-left:6px; color:var(--err); cursor:pointer; font-size:14px;
+    font-weight:700; padding:2px 6px; border-radius:4px;
+  }
+  .row-remove:hover{background:#fbe9e7;}
+  .sqft-wrap{display:flex; align-items:center; gap:6px;}
+  .sqft-wrap input[type=checkbox]{width:auto; padding:0; margin:0; cursor:pointer; flex-shrink:0;}
+  .sqft-wrap input[type=number]{flex:1; min-width:0;}
+  .item-name input.f-itemname{
+    width:100%; padding:6px 8px; font-size:13px; font-weight:600;
+    border:1px dashed var(--gold); background:#fffceb;
+  }
+  .item-name-wrap{
+    display:flex; align-items:center; gap:6px;
+  }
+  .item-name-wrap input{flex:1; min-width:0;}
+  .item-name-wrap .row-remove{margin-left:auto;}
+
+  .delete-actions{gap:10px; flex-wrap:wrap; margin-top:12px;}
+  .btn-delete{
+    padding:9px 14px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer;
+    border:1px solid var(--err); background:white; color:var(--err);
+  }
+  .btn-delete:hover{background:#fbe9e7;}
+  .btn-delete-event{border-color:#800; color:#800;}
+  .btn-delete-event:hover{background:#f5dcdc;}
+
+  .pencil-edit{
+    display:inline-block; margin-left:8px; cursor:pointer; opacity:0.55;
+    font-size:13px; padding:1px 4px; border-radius:3px; transition:opacity 0.15s;
+  }
+  .pencil-edit:hover{opacity:1; background:rgba(200,155,60,0.15);}
+
+  /* Drag-and-drop hints */
+  .cat-header{cursor:grab;}
+  .cat-header:active{cursor:grabbing;}
+  .subsection-title{cursor:grab;}
+  .item-table .item-name{cursor:grab;}
+  .sortable-ghost{opacity:0.4; background:#fff8e8;}
+  .sortable-drag{opacity:0.85;}
+
+  /* Loading overlay */
+  #loadingOverlay{
+    position:fixed; inset:0; background:var(--paper);
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+    gap:14px; z-index:9999; transition:opacity 0.25s;
+  }
+  #loadingOverlay .spinner{
+    width:44px; height:44px; border:4px solid var(--gold-soft);
+    border-top-color:var(--navy); border-radius:50%;
+    animation: cres-spin 0.8s linear infinite;
+  }
+  #loadingOverlay .msg{
+    font-size:14px; font-weight:600; color:var(--navy); letter-spacing:0.3px;
+  }
+  #loadingOverlay.hide{opacity:0; pointer-events:none;}
+  @keyframes cres-spin{ to{ transform:rotate(360deg); } }
+
+  /* Reload button in topbar */
+  .topbar{display:flex; justify-content:space-between; align-items:center;}
+  .reload-btn{
+    background:transparent; border:1px solid var(--gold); color:var(--gold-soft);
+    padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12.5px; font-weight:600;
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  .reload-btn:hover{background:rgba(200,155,60,0.15); color:white;}
+  .reload-btn.spinning svg{animation: cres-spin 0.8s linear infinite;}
+</style>
+</head>
+<body>
+
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="msg" id="loadingMsg">Loading library...</div>
+</div>
+
+<div class="topbar">
+  <div>
+    <div class="mark">CRES Portal</div>
+    <div class="sub">Event Estimate — Internal Use Only</div>
+  </div>
+  <button type="button" class="reload-btn" id="reloadBtn" onclick="reloadLibrary()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+    Reload
+  </button>
+</div>
+
+<div class="container">
+
+  <div class="mode-tabs">
+    <div class="mode-tab active" id="tab-new" onclick="setMode('new')">+ New Event</div>
+    <div class="mode-tab" id="tab-edit" onclick="setMode('edit')">&#9998; Edit Existing Event</div>
+  </div>
+
+  <!-- EDIT MODE PICKER -->
+  <div class="picker-card" id="editPicker" style="display:none;">
+    <div class="row2">
+      <div class="field">
+        <label>Select Event</label>
+        <select id="eventPicker"><option value="">Loading events...</option></select>
+      </div>
+      <div class="field">
+        <label>Version <span class="version-tag" id="latestTag" style="display:none;">latest</span></label>
+        <select id="versionPicker" disabled><option value="">&mdash;</option></select>
+      </div>
+    </div>
+    <div class="delete-actions" id="deleteActions" style="display:none;"></div>
+    <div class="status info" id="editLoadStatus" style="display:none;"></div>
+  </div>
+
+  <form id="estimateForm" style="display:none;">
+
+    <!-- EVENT HEADER -->
+    <div class="form-card">
+      <h3>Event Details</h3>
+      <div class="row2">
+        <div class="field"><label>Company Name</label><input type="text" id="company" placeholder="Billing / group company"></div>
+        <div class="field"><label>Client *</label><input type="text" id="client" required></div>
+      </div>
+      <div class="row3">
+        <div class="field"><label>Event Name *</label><input type="text" id="eventName" required></div>
+        <div class="field"><label>Venue</label><input type="text" id="venue"></div>
+        <div class="field"><label>Pax</label><input type="number" id="pax" min="0" step="1" placeholder="No. of guests"></div>
+      </div>
+    </div>
+
+    <!-- DAY TABS -->
+    <div class="day-tabs" id="dayTabs"></div>
+    <div id="dayPanes"></div>
+
+    <!-- SUMMARY -->
+    <div class="summary-card">
+      <h3>Estimate Summary</h3>
+      <div id="daySummaries"></div>
+      <div class="sum-row" style="font-weight:700; color:var(--navy);"><span>Subtotal</span><span id="sumSubtotal">&#8377;0</span></div>
+      <div class="sum-row"><span>Management Fee <input type="number" class="sum-input" id="mgmtPct" value="10" min="0" max="100" step="0.5">%</span><span id="sumMgmt">&#8377;0</span></div>
+      <div class="sum-row"><span>Hotel Coordination Charges</span><span>&#8377; <input type="number" class="sum-input" id="hotelCoord" value="0" min="0" step="1000"></span></div>
+      <div class="sum-row" style="font-weight:700;"><span>Sub Total before Tax</span><span id="sumPreGst">&#8377;0</span></div>
+      <div class="sum-row tax-type-row"><span>Tax Type</span><span>
+        <label><input type="radio" name="taxType" value="igst" checked onchange="setTaxType()"> IGST</label>
+        <label><input type="radio" name="taxType" value="cs" onchange="setTaxType()"> CGST + SGST</label>
+      </span></div>
+      <div class="sum-row"><span>IGST <input type="number" class="sum-input" id="igstPct" value="18" min="0" max="100" step="0.5">%</span><span id="sumIgst">&#8377;0</span></div>
+      <div class="sum-row"><span>SGST <input type="number" class="sum-input" id="sgstPct" value="9" min="0" max="100" step="0.5">%</span><span id="sumSgst">&#8377;0</span></div>
+      <div class="sum-row"><span>CGST <input type="number" class="sum-input" id="cgstPct" value="9" min="0" max="100" step="0.5">%</span><span id="sumCgst">&#8377;0</span></div>
+      <div class="sum-row grand"><span>Grand Total</span><span id="sumGrand">&#8377;0</span></div>
+
+      <div class="actions" id="actionsNew" style="display:none;">
+        <button type="button" class="btn btn-primary" onclick="submitForm('create')">Submit Estimate (V1)</button>
+      </div>
+      <div class="actions" id="actionsEdit" style="display:none;">
+        <button type="button" class="btn btn-secondary" onclick="submitForm('updateCurrent')">Update Current Version</button>
+        <button type="button" class="btn btn-primary" onclick="submitForm('saveAsNew')">Save as New Version</button>
+      </div>
+      <div class="status" id="statusMsg"></div>
+    </div>
+
+  </form>
+
+</div>
+
+<footer>Creative Rays Entertainment Solutions — Internal Tool</footer>
+
+<div id="savePromptOverlay" style="display:none; position:fixed; inset:0; background:rgba(16,36,62,.55); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:#fff; max-width:420px; width:90%; border-radius:14px; padding:22px; box-shadow:0 18px 50px rgba(0,0,0,.3);">
+    <div style="font-weight:800; font-size:16px; color:#10243e; margin-bottom:8px;">Unsaved changes</div>
+    <div style="font-size:14px; color:#333; line-height:1.5; margin-bottom:18px;">You have unsaved changes. Save before leaving?</div>
+    <div style="display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
+      <button type="button" id="spCancel" class="btn btn-secondary" style="padding:9px 14px;">Cancel</button>
+      <button type="button" id="spDont" class="btn" style="padding:9px 14px; background:#eee; color:#333;">Don't Save</button>
+      <button type="button" id="spSave" class="btn btn-primary" style="padding:9px 14px;">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== CONFIG =====================
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzqyW6JWbC_CneOXsja2K7kMCkfmVtnAK_PnXK3KkIc6l5OYVKpfxhjFKY1ETNV87Rv/exec";
+
+let CATEGORIES = []; // loaded from backend on init
+
+// ===== NEW: Human/service categories =====
+// no-size  -> hide Size + Sqft (kept: Description, Qty, Rate)
+// no-days  -> also hide Days (calc becomes qty x rate only)
+// Match is case-insensitive on the Library category name. Edit these lists
+// if your Library uses different spellings.
+// no-size -> hide Size + Sqft ; no-days -> also hide Days (calc = qty x rate)
+const NO_SIZE_CATS = ["man power","manpower","man-power","artist","artists","artist & entertainment","artist and entertainment","food & beverages","food and beverages","food & beverage","food and beverage","f&b","f & b","sfx","sfx (special effects)","special effects","security & safety","security and safety","security safety","collateral","collaterals","permission and liscences","permission and licences","permission and licenses","permission & licences","permission license","permission licence","permissions","communication","misc & transport","misc and transport","activities","event coverage","hampers and giveaway","hampers & giveaway","hampers and giveaways","hampers","venues","venue","technical","f&b catering","f & b catering","food and beverage catering","food & beverage catering","catering","awards & recognition","awards and recognition","awards","travel, lodging & boarding","travel lodging & boarding","travel lodging and boarding","travel & lodging","travel and lodging"];
+const NO_DAYS_CATS = ["man power","manpower","man-power","artist","artists","artist & entertainment","artist and entertainment","security & safety","security and safety","security safety","collateral","collaterals"];
+// KW -> keep Size but show header as "kW", hide Sqft + Days, amount = qty x rate (generator / power supply)
+const KW_CATS = ["generator","generators","dg","dg set","dg sets","generator set","generator sets","power supply"];
+// PAX -> just relabel the Qty header to "Pax" (calc unchanged: days x pax x rate) (food & beverages)
+const PAX_CATS = ["food & beverages","food and beverages","food & beverage","food and beverage","f&b","f & b","permission and liscences","permission and licences","permission and licenses","permission & licences","permission license","permission licence","permissions","f&b catering","f & b catering","food and beverage catering","food & beverage catering","catering"];
+// NO_SQFT -> hide ONLY Sqft (Size + Days stay, no kW relabel) (rental, hampers)
+const NO_SQFT_CATS = ["rental","rentals"];
+function inCat(list,name){ return list.includes((name||"").trim().toLowerCase()); }
+function catNoSize(name){ return inCat(NO_SIZE_CATS,name); }
+function catNoDays(name){ return inCat(NO_DAYS_CATS,name) || inCat(KW_CATS,name); }
+function catKw(name){ return inCat(KW_CATS,name); }
+function catPax(name){ return inCat(PAX_CATS,name); }
+function catNoSqft(name){ return inCat(NO_SQFT_CATS,name); }
+function itemTableClass(name, extra){
+  return 'item-table' + (extra ? (' ' + extra) : '') +
+         (catNoSize(name) ? ' no-size' : '') +
+         (catKw(name) ? ' no-sqft kw' : '') +
+         (catNoSqft(name) ? ' no-sqft' : '') +
+         (catNoDays(name) ? ' no-days' : '') +
+         (catPax(name) ? ' pax' : '');
+}
+// Relabel per-category headers (kW for generator, Pax for F&B). Idempotent; called from recalc().
+function applyColLabels(root){
+  const scope = root || document;
+  scope.querySelectorAll('.item-table.kw th.c-size').forEach(th=>{ if(th.textContent!=='kW') th.textContent='kW'; });
+  scope.querySelectorAll('.item-table.kw td.c-size').forEach(td=>{ td.setAttribute('data-label','kW'); });
+  scope.querySelectorAll('.item-table.pax th.c-qty').forEach(th=>{ if(th.textContent!=='Pax') th.textContent='Pax'; });
+  scope.querySelectorAll('.item-table.pax td.c-qty').forEach(td=>{ td.setAttribute('data-label','Pax'); });
+}
+
+// Safe calculator for the Amount box: allows numbers and + - * / ( ) . only.
+// x/X -> * , strips ft/sqft/feet/commas/spaces/₹/rs. Returns a number or null.
+function evalAmount(raw){
+  if(raw==null) return null;
+  let s = String(raw).trim();
+  if(s==="") return null;
+  s = s.replace(/[xX]/g,'*');            // x / X used as multiply -> *
+  s = s.replace(/[^0-9+\-*/().]/g,'');   // strip everything else (sqft, ft, h, w, mm, ₹, commas, spaces...)
+  if(s==="") return null;
+  if(!/[0-9]/.test(s)) return null;      // must have at least one number
+  try{
+    const val = Function('"use strict"; return (' + s + ');')();
+    if(typeof val === 'number' && isFinite(val)) return Math.round(val*100)/100;
+  }catch(e){}
+  return null;
+}
+// Attach to an amount input: on blur / Enter, evaluate an expression into a number.
+function attachAmountCalc(inp, tr){
+  if(!inp) return;
+  const run = ()=>{
+    const raw = inp.value;
+    if(/[+\-*/xX()]/.test(raw)){          // looks like a calculation
+      const v = evalAmount(raw);
+      if(v!=null) inp.value = v;           // replace expr with result
+    }
+    tr.dataset.manualAmt = (inp.value||"").trim()!=="" ? "1" : "0";
+    recalc();
+  };
+  inp.addEventListener('blur', run);
+  inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); run(); inp.blur(); } });
+}
+// Size box: type a dimension/expression like 15ft*20ft (or 15*15, 20x20x3) and it
+// evaluates in place on blur/Enter -> the box shows the computed number. Units/letters ignored.
+function attachSizeCalc(inp, tr){
+  if(!inp) return;
+  const run = ()=>{
+    const raw = inp.value;
+    if(/[+\-*/xX()]/.test(raw)){          // only when it looks like a calculation
+      const v = evalAmount(raw);
+      if(v!=null) inp.value = v;           // replace expression with result, in the same box
+    }
+  };
+  inp.addEventListener('blur', run);
+  inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); run(); } });
+}
+
+const LOGISTICS = [
+  { vehicle: "Sedan", routes: ["Pune Airport to JW Marriott", "Mumbai to Pune"] },
+  { vehicle: "Innova Crysta", routes: ["Pune Airport to JW Marriott", "Mumbai to Pune"] },
+  { vehicle: "Toyota Hycross", routes: ["Pune Airport to JW Marriott", "Mumbai to Pune"] },
+  { vehicle: "35/40 Seater AC Bus", routes: ["Pune Airport to JW Marriott"] }
+];
+
+// ===================== STATE =====================
+let mode = "new";
+let days = [];
+let activeDay = null;
+let dayCounter = 0;
+let currentEventId = null;
+let currentVersion = null;
+let currentEventName = null;
+
+// ===================== MODE =====================
+let _bypassGuard = false;
+function setMode(m){
+  if(!_bypassGuard && hasUnsavedContent()){
+    // keep tab highlight on current mode until user decides
+    document.getElementById('tab-new').classList.toggle('active', mode==='new');
+    document.getElementById('tab-edit').classList.toggle('active', mode==='edit');
+    showSavePrompt(()=>{ _bypassGuard = true; setMode(m); _bypassGuard = false; });
+    return;
+  }
+  mode = m;
+  document.getElementById('tab-new').classList.toggle('active', m==='new');
+  document.getElementById('tab-edit').classList.toggle('active', m==='edit');
+  document.getElementById('editPicker').style.display = m==='edit' ? 'block' : 'none';
+  document.getElementById('estimateForm').style.display = m==='new' ? 'block' : 'none';
+  document.getElementById('actionsNew').style.display = m==='new' ? 'flex' : 'none';
+  document.getElementById('actionsEdit').style.display = 'none';
+  document.getElementById('deleteActions').style.display = 'none';
+  resetForm();
+  if(m==='new'){ days=[]; dayCounter=0; document.getElementById('dayPanes').innerHTML=""; addDay("Day 1"); }
+  if(m==='edit'){ loadEventList(); }
+}
+
+function resetForm(){
+  document.getElementById('client').value="";
+  document.getElementById('company').value="";
+  document.getElementById('eventName').value="";
+  document.getElementById('venue').value="";
+  document.getElementById('pax').value="";
+  document.getElementById('mgmtPct').value=10;
+  document.getElementById('hotelCoord').value=0;
+  document.getElementById('igstPct').value=18;
+  document.getElementById('sgstPct').value=9;
+  document.getElementById('cgstPct').value=9;
+  const igstR = document.querySelector('input[name="taxType"][value="igst"]');
+  if(igstR) igstR.checked = true;
+  if(typeof setTaxType === 'function') setTaxType();
+  currentEventId=null; currentVersion=null; currentEventName=null;
+}
+
+// ===================== DAY MGMT =====================
+function addDay(label){
+  dayCounter++;
+  const id = "day"+dayCounter;
+  days.push({ id, label: label || `Day ${days.length+1}`, date: "" });
+  buildDayPane(id);
+  renderDayTabs();
+  switchDay(id);
+  recalc();
+}
+
+function renderDayTabs(){
+  const tabs = document.getElementById('dayTabs');
+  tabs.innerHTML = "";
+  days.forEach(d => {
+    const t = document.createElement('div');
+    t.className = 'day-tab' + (d.id===activeDay?' active':'');
+    t.innerHTML = `<span onclick="switchDay('${d.id}')">${d.label}</span>` +
+      (days.length>1 ? `<span class="x" onclick="removeDay('${d.id}',event)">&#10005;</span>` : '');
+    tabs.appendChild(t);
+  });
+  const addBtn = document.createElement('button');
+  addBtn.type="button"; addBtn.className='add-day-btn'; addBtn.textContent='+ Add Day';
+  addBtn.onclick = () => addDay();
+  tabs.appendChild(addBtn);
+}
+
+function switchDay(id){
+  activeDay = id;
+  document.querySelectorAll('.day-pane').forEach(p=>p.classList.remove('active'));
+  const pane = document.getElementById(id);
+  if(pane) pane.classList.add('active');
+  renderDayTabs();
+}
+
+function removeDay(id, e){
+  e.stopPropagation();
+  if(days.length<=1) return;
+  days = days.filter(d=>d.id!==id);
+  const el = document.getElementById(id); if(el) el.remove();
+  if(activeDay===id) activeDay = days[0].id;
+  renderDayTabs(); switchDay(activeDay); recalc();
+}
+
+function buildDayPane(id){
+  const pane = document.createElement('div');
+  pane.className='day-pane'; pane.id=id;
+  const d = days.find(x=>x.id===id);
+
+  const dateCard = document.createElement('div');
+  dateCard.className='form-card';
+  dateCard.innerHTML = `
+    <div class="row2">
+      <div class="field"><label>Day Label</label>
+        <input type="text" value="${d.label}" onchange="updateDayLabel('${id}',this.value)"></div>
+      <div class="field"><label>Date</label>
+        <input type="date" class="day-date" data-day="${id}" onchange="updateDayDate('${id}',this.value)"></div>
+    </div>`;
+  pane.appendChild(dateCard);
+
+  CATEGORIES.forEach((cat,ci)=>{
+    const box = document.createElement('div');
+    box.className='category';
+    box.innerHTML = `
+      <div class="cat-header" onclick="this.parentElement.classList.toggle('open')">
+        <span><span class="cat-num">${ci+1}.</span> <span class="cat-name-display">${cat.name}</span><span class="pencil-edit" onclick="event.stopPropagation(); editCategoryName(this)" title="Rename category">&#9999;&#65039;</span></span>
+        <span class="right"><span class="cat-total">&#8377;0</span><span class="chev">&#9654;</span></span>
+      </div>
+      <div class="cat-body"></div>`;
+    const body = box.querySelector('.cat-body');
+
+    // Split subs: named sub-sections vs direct items (blank sub-section title)
+    const namedSubs = cat.subs.filter(s => s.title && s.title.trim() !== "");
+    const directSubs = cat.subs.filter(s => !s.title || s.title.trim() === "");
+
+    // ===== ZONE 1 (TOP): Direct items table (only if items exist) =====
+    let directTable = null;
+    let directTbody = null;
+    let directAddBtn = null;
+
+    const ensureDirectTable = () => {
+      if(directTable) return directTable;
+      directTable = document.createElement('table');
+      directTable.className = itemTableClass(cat.name, 'direct-items-table');
+      directTable.dataset.day=id; directTable.dataset.cat=ci; directTable.dataset.sub='direct';
+      directTable.innerHTML = `<thead><tr>
+        <th>Item</th><th class="c-desc">Description</th><th class="c-size">Size</th>
+        <th class="c-sqft">Sqft</th><th class="c-days">Days</th>
+        <th class="c-qty">Qty</th><th class="c-rate">Rate</th><th class="c-amt">Amount</th><th class="c-remark c-rc">Remark (Client)</th><th class="c-remark c-rd">Remark (Doer)</th>
+      </tr></thead><tbody></tbody>`;
+      directTbody = directTable.querySelector('tbody');
+      // Table sits above the "+ Add Item" button
+      if(directAddBtn) body.insertBefore(directTable, directAddBtn);
+      else body.appendChild(directTable);
+      return directTable;
+    };
+
+    directSubs.forEach(sub => {
+      if(!sub.items || sub.items.length === 0) return;
+      ensureDirectTable();
+      sub.items.forEach(item => {
+        addItemRow(directTbody, { day:id, ci, si:'direct', subtitle:"", catname:cat.name, item, custom:false });
+      });
+    });
+
+    // "+ Add Item" button (always present) — creates table lazily
+    directAddBtn = document.createElement('button');
+    directAddBtn.type = 'button';
+    directAddBtn.className = 'add-item-btn add-direct-item-btn';
+    directAddBtn.style.marginTop = '8px';
+    directAddBtn.textContent = '+ Add Item';
+    directAddBtn.onclick = () => {
+      ensureDirectTable();
+      const tr = addItemRow(directTbody, { day:id, ci, si:'direct', subtitle:"", catname:cat.name, custom:true });
+      const inp = tr.querySelector('.f-itemname'); if(inp) inp.focus();
+    };
+    body.appendChild(directAddBtn);
+
+    // ===== ZONE 2 (MIDDLE): Named sub-sections =====
+    namedSubs.forEach((sub, siNamed) => {
+      const si = cat.subs.indexOf(sub);
+      const sd = document.createElement('div');
+      sd.className='subsection';
+      sd.innerHTML = `<div class="subsection-title"><span class="drag-handle" title="Drag to reorder">&#8942;&#8942;</span><span class="sub-chev">&#9654;</span><span class="sub-title-display">${sub.title}</span><span class="pencil-edit" onclick="event.stopPropagation(); editSubsectionName(this)" title="Rename sub-section">&#9999;&#65039;</span></div>`;
+      const titleDiv = sd.querySelector('.subsection-title');
+      titleDiv.addEventListener('click', (e) => {
+        if(e.target.tagName === 'INPUT' || e.target.classList.contains('pencil-edit') || e.target.classList.contains('row-remove')) return;
+        sd.classList.toggle('open');
+      });
+      const table = document.createElement('table');
+      table.className = itemTableClass(cat.name);
+      table.dataset.day=id; table.dataset.cat=ci; table.dataset.sub=si;
+      table.innerHTML = `<thead><tr>
+        <th>Item</th><th class="c-desc">Description</th><th class="c-size">Size</th>
+        <th class="c-sqft">Sqft</th><th class="c-days">Days</th>
+        <th class="c-qty">Qty</th><th class="c-rate">Rate</th><th class="c-amt">Amount</th><th class="c-remark c-rc">Remark (Client)</th><th class="c-remark c-rd">Remark (Doer)</th>
+      </tr></thead><tbody></tbody>`;
+      const tbody = table.querySelector('tbody');
+
+      sub.items.forEach((item)=>{
+        addItemRow(tbody, { day:id, ci, si, subtitle:sub.title, catname:cat.name, item, custom:false });
+      });
+      sd.appendChild(table); applyColLabels(sd);
+
+      const addBtn = document.createElement('button');
+      addBtn.type='button'; addBtn.className='add-item-btn';
+      addBtn.textContent = '+ Add Item';
+      addBtn.onclick = () => {
+        const newTr = addItemRow(tbody, { day:id, ci, si, subtitle:sub.title, catname:cat.name, custom:true });
+        const inp = newTr.querySelector('.f-itemname'); if(inp) inp.focus();
+      };
+      sd.appendChild(addBtn);
+      body.appendChild(sd);
+    });
+
+    // ===== ZONE 3 (BOTTOM): "+ Add Sub-section" =====
+    const addSubBtn = document.createElement('button');
+    addSubBtn.type = 'button';
+    addSubBtn.className = 'add-item-btn add-sub-btn';
+    addSubBtn.style.marginTop = '10px';
+    addSubBtn.textContent = '+ Add Sub-section';
+    addSubBtn.onclick = () => {
+      const sd = addCustomSubsectionInline(id, cat.name, body);
+      const inp = sd.querySelector('.sub-title-input'); if(inp) inp.focus();
+    };
+    body.appendChild(addSubBtn);
+
+    pane.appendChild(box);
+
+    // Insert Logistics category right after the first (Venues) → 2nd position
+    if(ci === 0){
+      pane.appendChild(buildLogisticsCategory(id, 2));
+    }
+  });
+
+  // Renumber all categories (needed because Logistics is inserted at position 2)
+  renumberAllCategories(pane);
+
+  const customCatsBox = document.createElement('div');
+  customCatsBox.className = 'custom-cats';
+  customCatsBox.dataset.day = id;
+  pane.appendChild(customCatsBox);
+
+  const addCatBtn = document.createElement('button');
+  addCatBtn.type='button'; addCatBtn.className='add-item-btn';
+  addCatBtn.style.marginTop='8px';
+  addCatBtn.textContent = '+ Add Category';
+  addCatBtn.onclick = () => {
+    const newBox = addCustomCategory(id, customCatsBox);
+    const inp = newBox.querySelector('.cat-name-input'); if(inp) inp.focus();
+  };
+  pane.appendChild(addCatBtn);
+
+  const ds = document.createElement('div');
+  ds.className='day-summary';
+  ds.innerHTML = `<span>${d.label} Total</span><span id="${id}-total">&#8377;0</span>`;
+  pane.appendChild(ds);
+
+  document.getElementById('dayPanes').appendChild(pane);
+  enableSortables(pane);
+}
+
+function setupSubsectionSortable(body){
+  if(typeof Sortable === 'undefined' || !body) return;
+  if(body._sortableSubs) return;
+  body._sortableSubs = true;
+  Sortable.create(body, {
+    group: 'cres-subsections',
+    handle: '.drag-handle',
+    draggable: '.subsection',
+    animation: 150,
+    forceFallback: true,
+    filter: 'input, .row-remove, .pencil-edit, .sub-chev',
+    preventOnFilter: false,
+    onEnd: (evt) => {
+      const dragged = evt.item;
+      const draggedTitle = (dragged.querySelector('.sub-title-display')?.textContent
+                            || dragged.querySelector('.sub-title-input')?.value || "").trim();
+      const targetCatBody = evt.to;
+      const targetCat = targetCatBody.closest('.category');
+      const targetCatName = targetCat
+        ? (targetCat.querySelector('.cat-name-display')?.textContent || targetCat.querySelector('.cat-name-input')?.value || "").trim()
+        : "";
+
+      const targetCatSubs = targetCat ? Array.from(targetCat.querySelectorAll('.subsection')) : [];
+      const clash = targetCatSubs.some(sd => {
+        if(sd === dragged) return false;
+        const t = (sd.querySelector('.sub-title-display')?.textContent
+                   || sd.querySelector('.sub-title-input')?.value || "").trim();
+        return t && t === draggedTitle;
+      });
+
+      if(clash && evt.from !== evt.to){
+        alert(`"${draggedTitle}" already exists in "${targetCatName}". Move cancelled.`);
+        evt.from.insertBefore(dragged, evt.from.children[evt.oldIndex] || null);
+        recalc();
+        return;
+      }
+
+      if(targetCat){
+        dragged.querySelectorAll('tr').forEach(tr => tr.dataset.catname = targetCatName);
+      }
+      recalc();
+    }
+  });
+}
+
+function enableSortables(pane){
+  if(typeof Sortable === 'undefined') return;
+
+  Sortable.create(pane, {
+    group: 'cres-categories',
+    handle: '.cat-header',
+    draggable: '.category',
+    animation: 150,
+    forceFallback: true,
+    filter: 'input, .row-remove, .pencil-edit, .chev',
+    preventOnFilter: false,
+    onEnd: () => {
+      renumberAllCategories(pane);
+      recalc();
+    }
+  });
+
+  const customCatsBox = pane.querySelector('.custom-cats');
+  if(customCatsBox){
+    Sortable.create(customCatsBox, {
+      group: 'cres-categories',
+      handle: '.cat-header',
+      draggable: '.category',
+      animation: 150,
+      forceFallback: true,
+      filter: 'input, .row-remove, .pencil-edit, .chev',
+      preventOnFilter: false,
+      onEnd: () => {
+        renumberAllCategories(pane);
+        recalc();
+      }
+    });
+  }
+
+  pane.querySelectorAll('.cat-body, .custom-subs').forEach(body => {
+    setupSubsectionSortable(body);
+  });
+
+  pane.querySelectorAll('.item-table tbody').forEach(tbody => setupItemSortable(tbody));
+}
+
+function setupItemSortable(tbody){
+  if(typeof Sortable === 'undefined' || !tbody) return;
+  if(tbody._sortableItems) return;
+  if(tbody.closest('.logistics-table')) return;
+  tbody._sortableItems = true;
+  Sortable.create(tbody, {
+    group: 'cres-items',
+    handle: '.item-name',
+    draggable: 'tr',
+    animation: 150,
+    forceFallback: true,
+    filter: 'input, .row-remove, .pencil-edit',
+    preventOnFilter: false,
+    onEnd: (evt) => {
+      const newTbody = evt.to;
+      const parentSub = newTbody.closest('.subsection');
+      const parentCat = newTbody.closest('.category');
+      const tr = evt.item;
+
+      if(parentCat){
+        const catNameEl = parentCat.querySelector('.cat-name-display') || parentCat.querySelector('.cat-name-input');
+        if(catNameEl){
+          const cname = catNameEl.tagName === 'INPUT' ? catNameEl.value : catNameEl.textContent.trim();
+          tr.dataset.catname = cname;
+        }
+      }
+      if(parentSub){
+        const subTitleEl = parentSub.querySelector('.sub-title-display') || parentSub.querySelector('.sub-title-input');
+        if(subTitleEl){
+          const sname = subTitleEl.tagName === 'INPUT' ? subTitleEl.value : subTitleEl.textContent.trim();
+          tr.dataset.subtitle = sname;
+        }
+      }
+      recalc();
+    }
+  });
+}
+
+// No-op: reordering is per-event only, does not sync to backend Library
+function syncLibraryOrder(){}
+
+function addItemRow(tbody, opts){
+  const tr = document.createElement('tr');
+  tr.dataset.day=opts.day; tr.dataset.cat=opts.ci; tr.dataset.sub=opts.si;
+  tr.dataset.subtitle=opts.subtitle; tr.dataset.catname=opts.catname;
+  tr.dataset.custom = opts.custom ? "1" : "0";
+  tr.dataset.item = opts.custom ? "" : (opts.item?.name || "");
+
+  const item = opts.item || {};
+
+  const itemCell = opts.custom
+    ? `<td class="item-name" data-label="Item"><div class="item-name-wrap"><input type="text" class="f-itemname" placeholder="New item name" value="${item.name||''}"><span class="row-remove" onclick="this.closest('tr').remove(); recalc();" title="Remove">&#10005;</span></div></td>`
+    : `<td class="item-name">${item.name||''}<span class="pencil-edit" onclick="editItemName(this, '${(opts.catname||'').replace(/'/g,'\\\'')}', '${(opts.subtitle||'').replace(/'/g,'\\\'')}')" title="Rename permanently">&#9999;&#65039;</span></td>`;
+
+  const sqftCell = `<td class="c-sqft" data-label="Sqft"><div class="sqft-wrap"><input type="checkbox" class="f-usesqft" title="Multiply Sqft in Amount"><input type="number" class="f-sqft" step="0.01"></div></td>`;
+
+  tr.innerHTML = itemCell + `
+    <td class="c-desc" data-label="Description"><input type="text" class="f-desc"></td>
+    <td class="c-size" data-label="Size"><input type="text" class="f-size" placeholder="e.g. 15ft*20ft"></td>
+    ${sqftCell}
+    <td class="c-days" data-label="Days"><input type="number" class="f-days" min="0" step="1"></td>
+    <td class="c-qty" data-label="Qty"><input type="number" class="f-qty" min="0" step="1"></td>
+    <td class="c-rate" data-label="Rate (₹)"><input type="number" class="f-rate" min="0" step="0.01"></td>
+    <td class="amount-cell c-amt" data-label="Amount"><input type="text" inputmode="text" class="f-amount" placeholder="auto"></td>
+    <td class="c-remark" data-label="Remark (Client)"><input type="text" class="f-remark-client" placeholder="Remark to Client"></td>
+    <td class="c-remark" data-label="Remark (Doer)"><input type="text" class="f-remark-doer" placeholder="Remark to Doer"></td>`;
+
+  tbody.appendChild(tr);
+  const _amtInp = tr.querySelector('.f-amount');
+  if(_amtInp){ _amtInp.addEventListener('input', ()=>{ tr.dataset.manualAmt = _amtInp.value.trim()!=="" ? "1" : "0"; }); }
+  tr.querySelectorAll('input').forEach(el => el.addEventListener('input', recalc));
+  attachAmountCalc(_amtInp, tr);
+
+  // Ensure this tbody is registered with item Sortable (lazy init for newly created tables)
+  setupItemSortable(tbody);
+
+  // Auto-calc sqft from size when size changes
+  const sizeInp = tr.querySelector('.f-size');
+  const sqftInp = tr.querySelector('.f-sqft');
+  if(sizeInp && sqftInp){
+    sizeInp.addEventListener('blur', () => {
+      const computed = computeSqftFromSize(sizeInp.value);
+      if(computed !== null){
+        sqftInp.value = computed;
+        recalc();
+      }
+    });
+  }
+  return tr;
+}
+
+function computeSqftFromSize(sizeStr){
+  if(!sizeStr) return null;
+  var s = sizeStr.trim();
+  if(!s) return null;
+
+  var cleaned = s.replace(/[a-zA-Z]+/g, '').replace(/\s+/g, '');
+  if(!cleaned) return null;
+
+  var hasMath = /[*+\-]/.test(cleaned);
+
+  if(hasMath){
+    var expr = cleaned.replace(/[xX×]/g, '*');
+    if(!/^[\d+\-*/.()]+$/.test(expr)) return null;
+    try{
+      var val = Function('"use strict"; return (' + expr + ')')();
+      if(typeof val === "number" && isFinite(val)){
+        return Math.round(val * 100) / 100;
+      }
+    } catch(e){}
+    return null;
+  }
+
+  var matches = s.match(/\d+(\.\d+)?/g);
+  if(!matches || matches.length < 2) return null;
+  var nums = matches.map(parseFloat);
+  var sqft = nums[0] * nums[1];
+  return Math.round(sqft * 100) / 100;
+}
+
+function addCustomCategory(dayId, container, presetName){
+  const box = document.createElement('div');
+  box.className = 'category open';
+  box.dataset.custom = "1";
+  box.innerHTML = `
+    <div class="cat-header">
+      <span style="display:flex; align-items:center; gap:8px; flex:1; min-width:0;">
+        <span class="cat-num">?.</span>
+        <input type="text" class="cat-name-input" placeholder="Category name" value="${presetName||''}" style="flex:1; padding:6px 10px; font-size:14.5px; font-weight:700; border:1px dashed var(--gold); background:#fffceb; color:var(--navy);">
+      </span>
+      <span class="right">
+        <span class="cat-total">&#8377;0</span>
+        <span class="chev">&#9654;</span>
+        <span class="row-remove" title="Remove category">&#10005;</span>
+      </span>
+    </div>
+    <div class="cat-body">
+      <div class="custom-direct-items"></div>
+      <div class="custom-subs"></div>
+    </div>`;
+  container.appendChild(box);
+  renumberCustomCategories(dayId);
+
+  const nameInput = box.querySelector('.cat-name-input');
+  nameInput.addEventListener('input', () => {
+    box.querySelectorAll('tr').forEach(tr => tr.dataset.catname = nameInput.value);
+  });
+
+  box.querySelector('.row-remove').onclick = (e) => {
+    e.stopPropagation();
+    box.remove();
+    renumberCustomCategories(dayId);
+    recalc();
+  };
+
+  const body = box.querySelector('.cat-body');
+  const subsBox = box.querySelector('.custom-subs');
+  const directBox = box.querySelector('.custom-direct-items');
+
+  let directTable = null;
+  let directTbody = null;
+  const ensureDirectTable = () => {
+    if(directTable) return directTable;
+    directTable = document.createElement('table');
+    directTable.className = 'item-table direct-items-table';
+    directTable.dataset.day = dayId; directTable.dataset.cat = 'cust'; directTable.dataset.sub = 'direct';
+    directTable.innerHTML = `<thead><tr>
+      <th>Item</th><th class="c-desc">Description</th><th class="c-size">Size</th>
+      <th class="c-sqft">Sqft</th><th class="c-days">Days</th>
+      <th class="c-qty">Qty</th><th class="c-rate">Rate</th><th class="c-amt">Amount</th><th class="c-remark c-rc">Remark (Client)</th><th class="c-remark c-rd">Remark (Doer)</th>
+    </tr></thead><tbody></tbody>`;
+    directTbody = directTable.querySelector('tbody');
+    const btn = directBox.querySelector('.add-direct-item-btn');
+    if(btn) directBox.insertBefore(directTable, btn);
+    else directBox.appendChild(directTable);
+    return directTable;
+  };
+
+  const directAddBtn = document.createElement('button');
+  directAddBtn.type = 'button';
+  directAddBtn.className = 'add-item-btn add-direct-item-btn';
+  directAddBtn.style.marginTop = '8px';
+  directAddBtn.textContent = '+ Add Item';
+  directAddBtn.onclick = () => {
+    ensureDirectTable();
+    const tr = addItemRow(directTbody, {
+      day: dayId, ci: 'cust', si: 'direct',
+      subtitle: "", catname: nameInput.value || 'Untitled', custom: true
+    });
+    const inp = tr.querySelector('.f-itemname'); if(inp) inp.focus();
+  };
+  directBox.appendChild(directAddBtn);
+
+  const addSubBtn = document.createElement('button');
+  addSubBtn.type = 'button';
+  addSubBtn.className = 'add-item-btn add-sub-btn';
+  addSubBtn.style.marginTop = '10px';
+  addSubBtn.textContent = '+ Add Sub-section';
+  addSubBtn.onclick = () => {
+    const sd = addCustomSubsection(dayId, box, subsBox);
+    const inp = sd.querySelector('.sub-title-input'); if(inp) inp.focus();
+  };
+  body.appendChild(addSubBtn);
+
+  box.querySelector('.cat-header').addEventListener('click', (e) => {
+    if(e.target.tagName === 'INPUT' || e.target.classList.contains('row-remove')) return;
+    box.classList.toggle('open');
+  });
+
+  setupSubsectionSortable(subsBox);
+
+  return box;
+}
+
+function addCustomSubsection(dayId, catBox, container, presetTitle){
+  const sd = document.createElement('div');
+  sd.className = 'subsection open';
+  sd.innerHTML = `
+    <div class="subsection-title" style="display:flex; align-items:center; gap:8px;">
+      <span class="drag-handle" title="Drag to reorder">&#8942;&#8942;</span>
+      <span class="sub-chev">&#9654;</span>
+      <input type="text" class="sub-title-input" placeholder="Sub-section title" value="${presetTitle||''}" style="padding:5px 8px; font-size:12.5px; font-weight:700; border:1px dashed var(--gold); background:#fffceb; color:var(--gold); text-transform:uppercase; letter-spacing:0.5px; flex:1; max-width:300px;">
+    </div>`;
+  const titleDiv = sd.querySelector('.subsection-title');
+  titleDiv.addEventListener('click', (e) => {
+    if(e.target.tagName === 'INPUT' || e.target.classList.contains('pencil-edit') || e.target.classList.contains('row-remove')) return;
+    sd.classList.toggle('open');
+  });
+
+  const table = document.createElement('table');
+  table.className = itemTableClass(catBox.querySelector('.cat-name-input')?.value || '');
+  table.innerHTML = `<thead><tr>
+    <th>Item</th><th class="c-desc">Description</th><th class="c-size">Size</th>
+    <th class="c-sqft">Sqft</th><th class="c-days">Days</th>
+    <th class="c-qty">Qty</th><th class="c-rate">Rate</th><th class="c-amt">Amount</th><th class="c-remark c-rc">Remark (Client)</th><th class="c-remark c-rd">Remark (Doer)</th>
+  </tr></thead><tbody></tbody>`;
+  sd.appendChild(table); applyColLabels(sd);
+
+  const addItemBtn = document.createElement('button');
+  addItemBtn.type='button'; addItemBtn.className='add-item-btn';
+  addItemBtn.textContent='+ Add Item';
+  sd.appendChild(addItemBtn);
+
+  const catNameInput = catBox.querySelector('.cat-name-input');
+  const subTitleEl = sd.querySelector('.sub-title-input');
+
+  addItemBtn.onclick = () => {
+    const tr = addItemRow(table.querySelector('tbody'), {
+      day: dayId, ci: 'cust', si: 'cust',
+      subtitle: subTitleEl.value || 'Untitled',
+      catname: catNameInput.value || 'Untitled',
+      custom: true
+    });
+    const inp = tr.querySelector('.f-itemname'); if(inp) inp.focus();
+  };
+
+  subTitleEl.addEventListener('input', () => {
+    table.querySelectorAll('tr').forEach(tr => tr.dataset.subtitle = subTitleEl.value);
+  });
+
+  container.appendChild(sd);
+  return sd;
+}
+
+function addCustomSubsectionInline(dayId, catName, catBody, presetTitle){
+  const sd = document.createElement('div');
+  sd.className = 'subsection open';
+  sd.dataset.custom = "1";
+  sd.innerHTML = `
+    <div class="subsection-title" style="display:flex; align-items:center; gap:8px;">
+      <span class="drag-handle" title="Drag to reorder">&#8942;&#8942;</span>
+      <span class="sub-chev">&#9654;</span>
+      <input type="text" class="sub-title-input" placeholder="Sub-section title" value="${presetTitle||''}" style="padding:5px 8px; font-size:12.5px; font-weight:700; border:1px dashed var(--gold); background:#fffceb; color:var(--gold); text-transform:uppercase; letter-spacing:0.5px; flex:1; max-width:300px;">
+      <span class="row-remove" title="Remove sub-section" style="margin-left:auto;">&#10005;</span>
+    </div>`;
+  const titleDiv = sd.querySelector('.subsection-title');
+  titleDiv.addEventListener('click', (e) => {
+    if(e.target.tagName === 'INPUT' || e.target.classList.contains('row-remove')) return;
+    sd.classList.toggle('open');
+  });
+
+  const table = document.createElement('table');
+  table.className = itemTableClass(catName);
+  table.innerHTML = `<thead><tr>
+    <th>Item</th><th class="c-desc">Description</th><th class="c-size">Size</th>
+    <th class="c-sqft">Sqft</th><th class="c-days">Days</th>
+    <th class="c-qty">Qty</th><th class="c-rate">Rate</th><th class="c-amt">Amount</th><th class="c-remark c-rc">Remark (Client)</th><th class="c-remark c-rd">Remark (Doer)</th>
+  </tr></thead><tbody></tbody>`;
+  sd.appendChild(table); applyColLabels(sd);
+
+  const addItemBtn = document.createElement('button');
+  addItemBtn.type='button'; addItemBtn.className='add-item-btn';
+  addItemBtn.textContent='+ Add Item';
+  sd.appendChild(addItemBtn);
+
+  const subTitleEl = sd.querySelector('.sub-title-input');
+  addItemBtn.onclick = () => {
+    const tr = addItemRow(table.querySelector('tbody'), {
+      day: dayId, ci: 'cust', si: 'cust',
+      subtitle: subTitleEl.value || 'Untitled',
+      catname: catName,
+      custom: true
+    });
+    const inp = tr.querySelector('.f-itemname'); if(inp) inp.focus();
+  };
+  subTitleEl.addEventListener('input', () => {
+    table.querySelectorAll('tr').forEach(tr => tr.dataset.subtitle = subTitleEl.value);
+  });
+  sd.querySelector('.row-remove').onclick = () => {
+    sd.remove();
+    recalc();
+  };
+
+  const btnRow = catBody.querySelector('.cat-add-btns');
+  if(btnRow) catBody.insertBefore(sd, btnRow);
+  else catBody.appendChild(sd);
+
+  return sd;
+}
+
+function renumberAllCategories(pane){
+  if(!pane) return;
+  const boxes = pane.querySelectorAll('.category');
+  boxes.forEach((box, i) => {
+    const numSpan = box.querySelector('.cat-num');
+    if(numSpan) numSpan.textContent = (i + 1) + '.';
+  });
+}
+
+function renumberCustomCategories(dayId){
+  const dayPane = document.getElementById(dayId);
+  if(!dayPane) return;
+  const fixedCount = CATEGORIES.length;
+  const customBoxes = dayPane.querySelectorAll('.custom-cats .category');
+  customBoxes.forEach((box, i) => {
+    const numSpan = box.querySelector('.cat-num');
+    if(numSpan) numSpan.textContent = (fixedCount + i + 1) + '.';
+  });
+}
+
+function updateDayLabel(id,val){
+  const d = days.find(x=>x.id===id); if(d) d.label = val;
+  renderDayTabs();
+  const totalRow = document.querySelector(`#${id} .day-summary span:first-child`);
+  if(totalRow) totalRow.textContent = val + ' Total';
+}
+function updateDayDate(id,val){
+  const d = days.find(x=>x.id===id); if(d) d.date = val;
+}
+
+// ===================== LOGISTICS (category-styled) =====================
+function buildLogisticsCategory(dayId, catNum){
+  const box = document.createElement('div');
+  box.className = 'category logistics-cat';
+  box.dataset.logisticsCat = "1";
+  box.dataset.day = dayId;
+  box.innerHTML = `
+    <div class="cat-header">
+      <span><span class="cat-num">${catNum}.</span> <span class="cat-name-display">Logistics</span><span class="pencil-edit" onclick="event.stopPropagation(); editCategoryName(this)" title="Rename category">&#9999;&#65039;</span></span>
+      <span class="right"><span class="cat-total">&#8377;0</span><span class="chev">&#9654;</span></span>
+    </div>
+    <div class="cat-body">
+      <table class="item-table logistics-table">
+        <thead><tr>
+          <th>Vehicle</th><th>Route</th>
+          <th class="c-qty">Qty</th><th class="c-rate">Rate</th>
+          <th class="c-amt">Amount</th><th class="c-remark c-rc">Remark (Client)</th><th class="c-remark c-rd">Remark (Doer)</th><th style="width:30px;"></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      <button type="button" class="add-item-btn add-log-btn">+ Add Logistics Row</button>
+    </div>`;
+
+  box.querySelector('.cat-header').addEventListener('click', (e) => {
+    if(e.target.tagName === 'INPUT') return;
+    box.classList.toggle('open');
+  });
+
+  const tbody = box.querySelector('tbody');
+  box.querySelector('.add-log-btn').onclick = () => {
+    const tr = addLogisticsRowInto(tbody);
+    const sel = tr.querySelector('.f-vehicle-sel'); if(sel) sel.focus();
+  };
+
+  return box;
+}
+
+function addLogisticsRowInto(tbody, data){
+  const tr = document.createElement('tr');
+  tr.dataset.log = "1";
+  const vOpts = ["Sedan","Innova","Bus AC","Bus Non-AC","Other"];
+  const selVal = (data && data.vehicle) ? String(data.vehicle) : "";
+  const isPreset = vOpts.includes(selVal);
+  const isOther = (selVal && !isPreset);
+  let optionsHtml = '<option value="">Select vehicle...</option>';
+  vOpts.forEach(v => {
+    let sel = "";
+    if(isPreset && v === selVal) sel = " selected";
+    if(isOther && v === "Other") sel = " selected";
+    optionsHtml += `<option value="${v}"${sel}>${v}</option>`;
+  });
+  const otherVal = isOther ? selVal : "";
+  const showOther = isOther || selVal === "Other";
+  const amtVal = (data && data.manualAmt && data.amount) ? data.amount : "";
+  tr.innerHTML = `
+    <td class="item-name" data-label="Vehicle">
+      <select class="f-vehicle-sel" onchange="toggleVehicleOther(this)">${optionsHtml}</select>
+      <input type="text" class="f-vehicle-other" placeholder="Specify vehicle" value="${otherVal}" style="margin-top:5px;${showOther?'':'display:none;'}">
+    </td>
+    <td data-label="Route"><input type="text" class="f-route" placeholder="e.g. Pune Airport to JW" value="${(data&&data.route)||''}"></td>
+    <td class="c-qty" data-label="Qty"><input type="number" class="f-qty" min="0" step="1" value="${(data&&data.qty)||''}"></td>
+    <td class="c-rate" data-label="Rate (₹)"><input type="number" class="f-rate" min="0" step="0.01" value="${(data&&data.rate)||''}"></td>
+    <td class="amount-cell c-amt" data-label="Amount"><input type="text" inputmode="text" class="f-amount" placeholder="auto" value="${amtVal}"></td>
+    <td class="c-remark" data-label="Remark (Client)"><input type="text" class="f-remark-client" placeholder="Remark to Client" value="${(data&&(data.remarkClient!=null?data.remarkClient:data.remark))||''}"></td>
+    <td class="c-remark" data-label="Remark (Doer)"><input type="text" class="f-remark-doer" placeholder="Remark to Doer" value="${(data&&data.remarkDoer)||''}"></td>
+    <td><span class="row-remove" onclick="this.closest('tr').remove(); recalc();" title="Remove">&#10005;</span></td>`;
+  if(data && data.manualAmt) tr.dataset.manualAmt = "1";
+  tbody.appendChild(tr);
+  const _amtInp = tr.querySelector('.f-amount');
+  if(_amtInp){ _amtInp.addEventListener('input', ()=>{ tr.dataset.manualAmt = _amtInp.value.trim()!=="" ? "1" : "0"; }); }
+  tr.querySelectorAll('input').forEach(el=>el.addEventListener('input', recalc));
+  attachAmountCalc(_amtInp, tr);
+  const _sel = tr.querySelector('.f-vehicle-sel');
+  if(_sel) _sel.addEventListener('change', recalc);
+  return tr;
+}
+
+function toggleVehicleOther(sel){
+  const cell = sel.closest('td');
+  const other = cell ? cell.querySelector('.f-vehicle-other') : null;
+  if(!other) return;
+  if(sel.value === 'Other'){ other.style.display=''; other.focus(); }
+  else { other.style.display='none'; other.value=''; }
+}
+
+// Kept for backward compat but no-op now
+function buildLogistics(){}
+function addLogisticsRow(data){
+  const activeP = document.querySelector('.day-pane.active') || document.querySelector('.day-pane');
+  if(!activeP) return null;
+  const logCat = activeP.querySelector('.logistics-cat');
+  if(!logCat) return null;
+  return addLogisticsRowInto(logCat.querySelector('tbody'), data);
+}
+
+// ===================== TAX TYPE =====================
+function getTaxType(){
+  const el = document.querySelector('input[name="taxType"]:checked');
+  return el ? el.value : 'igst';
+}
+function setTaxType(){
+  const t = getTaxType();
+  const igst = document.getElementById('igstPct');
+  const sgst = document.getElementById('sgstPct');
+  const cgst = document.getElementById('cgstPct');
+  if(!igst || !sgst || !cgst) return;
+  if(t === 'igst'){
+    igst.disabled = false;
+    sgst.disabled = true; cgst.disabled = true;
+  } else {
+    igst.disabled = true;
+    sgst.disabled = false; cgst.disabled = false;
+  }
+  recalc();
+}
+
+// ===================== CALC =====================
+function fmt(n){ return '₹' + Math.round(n).toLocaleString('en-IN'); }
+
+function recalc(){
+  let subtotal = 0;
+  const summaries = [];
+
+  days.forEach(d => {
+    let dayTotal = 0;
+    const dayPane = document.getElementById(d.id);
+    if(!dayPane){ summaries.push(`<div class="sum-row"><span>${d.label}</span><span>${fmt(0)}</span></div>`); return; }
+
+    dayPane.querySelectorAll('.category').forEach(box => {
+      let catTotal = 0;
+      box.querySelectorAll('tr').forEach(tr => {
+        const qtyEl = tr.querySelector('.f-qty');
+        if(!qtyEl) return;
+        const dys = parseFloat(tr.querySelector('.f-days')?.value);
+        const qty = parseFloat(qtyEl.value) || 0;
+        const rate = parseFloat(tr.querySelector('.f-rate')?.value) || 0;
+        const sqft = parseFloat(tr.querySelector('.f-sqft')?.value) || 0;
+        const useSqftEl = tr.querySelector('.f-usesqft');
+        const useSqft = useSqftEl ? useSqftEl.checked : false;
+        const effectiveDays = (isNaN(dys) || dys===0) ? 1 : dys;
+        const sqftMult = (useSqft && sqft>0) ? sqft : 1;
+
+        const amtInp = tr.querySelector('.f-amount');
+        const isManual = tr.dataset.manualAmt === "1" && amtInp && amtInp.value.trim() !== "";
+        let amt;
+        if(isManual){
+          amt = parseFloat(amtInp.value) || 0;
+        } else {
+          amt = effectiveDays * qty * rate * sqftMult;
+          if(amtInp) amtInp.value = amt > 0 ? Math.round(amt) : "";
+        }
+
+        if(qty>0 || rate>0 || amt>0){ tr.classList.add('has-value'); }
+        else { tr.classList.remove('has-value'); }
+        catTotal += amt;
+      });
+      const ct = box.querySelector('.cat-total');
+      if(ct) ct.textContent = catTotal>0 ? fmt(catTotal) : '₹0';
+      dayTotal += catTotal;
+    });
+
+    const dt = document.getElementById(`${d.id}-total`);
+    if(dt) dt.textContent = fmt(dayTotal);
+    subtotal += dayTotal;
+    summaries.push(`<div class="sum-row"><span>${d.label}</span><span>${fmt(dayTotal)}</span></div>`);
+  });
+
+  document.getElementById('daySummaries').innerHTML = summaries.join('');
+  document.getElementById('sumSubtotal').textContent = fmt(subtotal);
+
+  const mgmtPct = parseFloat(document.getElementById('mgmtPct').value) || 0;
+  const hotel = parseFloat(document.getElementById('hotelCoord').value) || 0;
+  const taxType = getTaxType();
+  const igstPct = taxType === 'igst' ? (parseFloat(document.getElementById('igstPct').value) || 0) : 0;
+  const sgstPct = taxType === 'cs'   ? (parseFloat(document.getElementById('sgstPct').value) || 0) : 0;
+  const cgstPct = taxType === 'cs'   ? (parseFloat(document.getElementById('cgstPct').value) || 0) : 0;
+
+  const mgmt = subtotal * mgmtPct/100;
+  const pre = subtotal + mgmt + hotel;
+  const igst = pre * igstPct/100;
+  const sgst = pre * sgstPct/100;
+  const cgst = pre * cgstPct/100;
+  const grand = pre + igst + sgst + cgst;
+
+  document.getElementById('sumMgmt').textContent = fmt(mgmt);
+  document.getElementById('sumPreGst').textContent = fmt(pre);
+  document.getElementById('sumIgst').textContent = fmt(igst);
+  document.getElementById('sumSgst').textContent = fmt(sgst);
+  document.getElementById('sumCgst').textContent = fmt(cgst);
+  document.getElementById('sumGrand').textContent = fmt(grand);
+
+  applyColLabels();
+}
+
+// ===================== COLLECT PAYLOAD =====================
+function collectPayload(){
+  const lineItems = [];
+  days.forEach(d=>{
+    const dayPane = document.getElementById(d.id);
+    if(!dayPane) return;
+    dayPane.querySelectorAll('.category tr').forEach(tr => {
+      const qtyEl = tr.querySelector('.f-qty');
+      if(!qtyEl) return;
+      if(tr.dataset.log === "1") return; // logistics handled separately
+      const isCustom = tr.dataset.custom === "1";
+      const itemName = isCustom
+        ? (tr.querySelector('.f-itemname')?.value || "").trim()
+        : tr.dataset.item;
+      const category = tr.dataset.catname || "";
+      const subSection = tr.dataset.subtitle || "";
+      const desc = tr.querySelector('.f-desc')?.value || "";
+      const size = tr.querySelector('.f-size')?.value || "";
+      const sqft = tr.querySelector('.f-sqft')?.value || "";
+      const dys = tr.querySelector('.f-days')?.value || "";
+      const qty = qtyEl.value;
+      const rate = tr.querySelector('.f-rate')?.value || "";
+      const remarkClient = tr.querySelector('.f-remark-client')?.value || "";
+      const remarkDoer = tr.querySelector('.f-remark-doer')?.value || "";
+      const manualAmtVal = tr.querySelector('.f-amount')?.value || "";
+      const isManual = tr.dataset.manualAmt === "1" && manualAmtVal.trim() !== "";
+      const useSqftEl = tr.querySelector('.f-usesqft');
+      const useSqft = useSqftEl ? useSqftEl.checked : false;
+      const hasAnyValue = (desc || size || sqft || dys || qty || rate || manualAmtVal || remarkClient || remarkDoer);
+      if(hasAnyValue && itemName){
+        const eDays = (parseFloat(dys)||0)===0 ? 1 : parseFloat(dys);
+        const sMult = (useSqft && (parseFloat(sqft)||0) > 0) ? parseFloat(sqft) : 1;
+        const amt = isManual
+          ? (parseFloat(manualAmtVal)||0)
+          : eDays * (parseFloat(qty)||0) * (parseFloat(rate)||0) * sMult;
+        lineItems.push({
+          dayId: d.id, dayLabel: d.label, dayDate: d.date,
+          category, subSection, item: itemName,
+          isCustom: isCustom, useSqft: useSqft, manualAmt: isManual,
+          description: desc, size: size, remarkClient: remarkClient, remarkDoer: remarkDoer,
+          sqft: parseFloat(sqft)||"", days: parseFloat(dys)||"",
+          qty: parseFloat(qty)||0, rate: parseFloat(rate)||0, amount: amt
+        });
+      }
+    });
+  });
+  const logistics = [];
+  document.querySelectorAll('tr[data-log="1"]').forEach(tr=>{
+    const sel = tr.querySelector('.f-vehicle-sel');
+    const otherInp = tr.querySelector('.f-vehicle-other');
+    let vehicle = sel ? (sel.value||"").trim() : (tr.querySelector('.f-vehicle')?.value || "").trim();
+    if(vehicle === "Other" && otherInp) vehicle = (otherInp.value||"").trim();
+    const route = (tr.querySelector('.f-route')?.value || "").trim();
+    const qty = tr.querySelector('.f-qty').value;
+    const rate = tr.querySelector('.f-rate').value;
+    const remarkClient = tr.querySelector('.f-remark-client')?.value || "";
+    const remarkDoer = tr.querySelector('.f-remark-doer')?.value || "";
+    const manualAmtVal = tr.querySelector('.f-amount')?.value || "";
+    const isManual = tr.dataset.manualAmt === "1" && manualAmtVal.trim() !== "";
+    if(vehicle || route || qty || rate || manualAmtVal || remarkClient || remarkDoer){
+      logistics.push({
+        vehicle: vehicle, route: route, remarkClient: remarkClient, remarkDoer: remarkDoer, manualAmt: isManual,
+        qty: parseFloat(qty)||0, rate: parseFloat(rate)||0,
+        amount: isManual ? (parseFloat(manualAmtVal)||0) : (parseFloat(qty)||0)*(parseFloat(rate)||0)
+      });
+    }
+  });
+  return {
+    header: {
+      company: document.getElementById('company').value,
+      client: document.getElementById('client').value,
+      eventName: document.getElementById('eventName').value,
+      venue: document.getElementById('venue').value,
+      pax: parseFloat(document.getElementById('pax').value)||""
+    },
+    days: days.map(d=>({id:d.id, label:d.label, date:d.date})),
+    lineItems, logistics,
+    summary: {
+      mgmtPct: parseFloat(document.getElementById('mgmtPct').value)||0,
+      hotelCoord: parseFloat(document.getElementById('hotelCoord').value)||0,
+      taxType: getTaxType(),
+      igstPct: parseFloat(document.getElementById('igstPct').value)||0,
+      sgstPct: parseFloat(document.getElementById('sgstPct').value)||0,
+      cgstPct: parseFloat(document.getElementById('cgstPct').value)||0
+    }
+  };
+}
+
+// ===================== SUBMIT =====================
+async function submitForm(action){
+  const statusEl = document.getElementById('statusMsg');
+  const payload = collectPayload();
+  if(!payload.header.client || !payload.header.eventName){
+    statusEl.className="status err"; statusEl.textContent="Client and Event Name are required."; return false;
+  }
+  payload.action = action;
+  payload.eventId = currentEventId;
+  payload.fromVersion = currentVersion;
+
+  if(SCRIPT_URL.includes("PASTE_YOUR")){
+    console.log("PAYLOAD (demo):", payload);
+    statusEl.className="status info";
+    statusEl.textContent = `Demo mode — payload logged to console. Connect SCRIPT_URL to save.`;
+    return false;
+  }
+
+  statusEl.className="status info"; statusEl.textContent="Saving...";
+
+  try{
+    const res = await fetch(SCRIPT_URL, {
+      method:"POST", mode:"cors",
+      headers:{"Content-Type":"text/plain"},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if(data.status === "success"){
+      statusEl.className="status ok";
+      statusEl.innerHTML = `Saved as ${data.version}. <a href="${data.sheetUrl}" target="_blank">Open Sheet ↗</a>`;
+      if(action==='create' || action==='saveAsNew'){
+        currentEventId = data.eventId;
+        currentVersion = data.version;
+      }
+      return true;
+    } else {
+      statusEl.className="status err"; statusEl.textContent = "Error: " + (data.message||"unknown");
+      return false;
+    }
+  } catch(err){
+    statusEl.className="status err"; statusEl.textContent = "Network error: " + err.message;
+    return false;
+  }
+}
+
+// ===================== EDIT MODE =====================
+async function loadEventList(){
+  const picker = document.getElementById('eventPicker');
+  picker.innerHTML = `<option value="">Loading...</option>`;
+  if(SCRIPT_URL.includes("PASTE_YOUR")){
+    picker.innerHTML = `<option value="">(Demo) Connect SCRIPT_URL to load events</option>`; return;
+  }
+  try{
+    const res = await fetch(`${SCRIPT_URL}?action=listEvents`);
+    const data = await res.json();
+    picker.innerHTML = `<option value="">Select an event...</option>`;
+    data.events.forEach(ev=>{
+      const opt = document.createElement('option');
+      opt.value = ev.eventId;
+      opt.textContent = `${ev.eventName} — ${ev.client}`;
+      picker.appendChild(opt);
+    });
+  } catch(err){
+    picker.innerHTML = `<option value="">Could not load events</option>`;
+  }
+}
+
+document.getElementById('eventPicker').addEventListener('change', async function(){
+  const eventId = this.value;
+  const vPicker = document.getElementById('versionPicker');
+  if(!eventId){ vPicker.disabled=true; vPicker.innerHTML=`<option>—</option>`; document.getElementById('estimateForm').style.display='none'; return; }
+
+  const status = document.getElementById('editLoadStatus');
+  status.style.display='block'; status.className='status info'; status.textContent='Loading versions...';
+
+  try{
+    const res = await fetch(`${SCRIPT_URL}?action=listVersions&eventId=${encodeURIComponent(eventId)}`);
+    const data = await res.json();
+    vPicker.innerHTML = "";
+    data.versions.forEach(v=>{
+      const opt = document.createElement('option');
+      opt.value = v; opt.textContent = v;
+      vPicker.appendChild(opt);
+    });
+    vPicker.disabled = false;
+    const latest = data.versions[data.versions.length-1];
+    vPicker.value = latest;
+    document.getElementById('latestTag').style.display='inline-block';
+    await loadVersion(eventId, latest);
+  } catch(err){
+    status.className='status err'; status.textContent='Could not load versions.';
+  }
+});
+
+document.getElementById('versionPicker').addEventListener('change', async function(){
+  const eventId = document.getElementById('eventPicker').value;
+  const version = this.value;
+  if(eventId && version) await loadVersion(eventId, version);
+});
+
+async function loadVersion(eventId, version){
+  const status = document.getElementById('editLoadStatus');
+  status.style.display='block'; status.className='status info'; status.textContent=`Loading ${version}...`;
+  try{
+    const res = await fetch(`${SCRIPT_URL}?action=getVersion&eventId=${encodeURIComponent(eventId)}&version=${encodeURIComponent(version)}`);
+    const data = await res.json();
+    applyLoadedData(data);
+    currentEventId = eventId; currentVersion = version;
+    document.getElementById('estimateForm').style.display='block';
+    document.getElementById('actionsEdit').style.display='flex';
+    document.getElementById('actionsNew').style.display='none';
+    document.getElementById('deleteActions').style.display='flex';
+    status.className='status ok'; status.textContent = `Loaded ${version}. Edit and choose update mode below.`;
+  } catch(err){
+    status.className='status err'; status.textContent='Could not load this version.';
+  }
+}
+
+async function confirmDeleteVersion(){
+  if(!currentEventId || !currentVersion) return;
+  const eventName = document.getElementById('eventPicker').selectedOptions[0]?.textContent || 'this event';
+  const ok = window.confirm(`Are you sure you want to delete ${currentVersion} of "${eventName}"?\n\nThis action cannot be undone.`);
+  if(!ok) return;
+
+  const statusEl = document.getElementById('statusMsg');
+  statusEl.className="status info"; statusEl.textContent = `Deleting ${currentVersion}...`;
+
+  try{
+    const res = await fetch(SCRIPT_URL, {
+      method:"POST", mode:"cors",
+      headers:{"Content-Type":"text/plain"},
+      body: JSON.stringify({ action:"deleteVersion", eventId: currentEventId, version: currentVersion })
+    });
+    const data = await res.json();
+    if(data.status === "success"){
+      statusEl.className="status ok"; statusEl.textContent = `${currentVersion} deleted. Reloading...`;
+      const picker = document.getElementById('eventPicker');
+      picker.dispatchEvent(new Event('change'));
+    } else {
+      statusEl.className="status err"; statusEl.textContent = "Error: " + (data.message||"unknown");
+    }
+  } catch(err){
+    statusEl.className="status err"; statusEl.textContent = "Network error: " + err.message;
+  }
+}
+
+async function confirmDeleteEvent(){
+  if(!currentEventId) return;
+  const eventName = document.getElementById('eventPicker').selectedOptions[0]?.textContent || 'this event';
+  const ok = window.confirm(`⚠️ Delete ENTIRE event "${eventName}"?\n\nThis will move the file to Drive Trash (30-day recovery window) and remove all versions from the portal.\n\nAre you sure?`);
+  if(!ok) return;
+
+  const statusEl = document.getElementById('statusMsg');
+  statusEl.className="status info"; statusEl.textContent = "Deleting event...";
+
+  try{
+    const res = await fetch(SCRIPT_URL, {
+      method:"POST", mode:"cors",
+      headers:{"Content-Type":"text/plain"},
+      body: JSON.stringify({ action:"deleteEvent", eventId: currentEventId })
+    });
+    const data = await res.json();
+    if(data.status === "success"){
+      statusEl.className="status ok"; statusEl.textContent = "Event moved to Drive Trash. Reloading list...";
+      currentEventId = null; currentVersion = null;
+      document.getElementById('estimateForm').style.display='none';
+      document.getElementById('deleteActions').style.display='none';
+      loadEventList();
+    } else {
+      statusEl.className="status err"; statusEl.textContent = "Error: " + (data.message||"unknown");
+    }
+  } catch(err){
+    statusEl.className="status err"; statusEl.textContent = "Network error: " + err.message;
+  }
+}
+
+function applyLoadedData(data){
+  // header
+  document.getElementById('company').value = data.header.company || "";
+  document.getElementById('client').value = data.header.client || "";
+  document.getElementById('eventName').value = data.header.eventName || "";
+  document.getElementById('venue').value = data.header.venue || "";
+  document.getElementById('pax').value = (data.header.pax !== undefined && data.header.pax !== null) ? data.header.pax : "";
+
+  // Reset days
+  days = []; dayCounter = 0;
+  document.getElementById('dayPanes').innerHTML = "";
+
+  // Rebuild days from data
+  (data.days||[{id:"day1",label:"Day 1",date:""}]).forEach(d=>{
+    dayCounter++;
+    const id = "day"+dayCounter;
+    days.push({ id, label: d.label, date: d.date });
+    buildDayPane(id);
+    if(d.date){
+      const di = document.querySelector(`.day-date[data-day="${id}"]`);
+      if(di) di.value = d.date;
+    }
+  });
+  renderDayTabs();
+  if(days.length>0) switchDay(days[0].id);
+
+  // Map old day IDs -> new IDs by index
+  const oldToNew = {};
+  (data.days||[]).forEach((d,i)=>{ if(days[i]) oldToNew[d.id] = days[i].id; });
+
+  // Fill line items
+  (data.lineItems||[]).forEach(li=>{
+    const newDayId = oldToNew[li.dayId] || days[0]?.id;
+    if(!newDayId) return;
+    const catIdx = CATEGORIES.findIndex(c=>c.name===li.category);
+
+    if(catIdx >= 0){
+      if(li.isCustom){
+        const cat = CATEGORIES[catIdx];
+        if(!li.subSection || li.subSection.trim() === ""){
+          const directTable = document.querySelector(`table[data-day="${newDayId}"][data-cat="${catIdx}"][data-sub="direct"]`);
+          if(!directTable) return;
+          const tr = addItemRow(directTable.querySelector('tbody'), {
+            day:newDayId, ci:catIdx, si:'direct', subtitle:"", catname:li.category, custom:true
+          });
+          fillRowFields(tr, li);
+          return;
+        }
+        const siIdx = cat.subs.findIndex(s => s.title === li.subSection);
+        if(siIdx < 0) return;
+        const table = document.querySelector(`table[data-day="${newDayId}"][data-cat="${catIdx}"][data-sub="${siIdx}"]`);
+        if(!table) return;
+        const tr = addItemRow(table.querySelector('tbody'), {
+          day:newDayId, ci:catIdx, si:siIdx, subtitle:li.subSection, catname:li.category, custom:true
+        });
+        fillRowFields(tr, li);
+      } else {
+        const rows = document.querySelectorAll(`tr[data-day="${newDayId}"][data-cat="${catIdx}"]`);
+        rows.forEach(tr=>{
+          if(tr.dataset.item === li.item && tr.dataset.subtitle === li.subSection && tr.dataset.custom !== "1"){
+            fillRowFields(tr, li);
+          }
+        });
+      }
+    } else {
+      const dayPane = document.getElementById(newDayId);
+      if(!dayPane) return;
+      const customCatsContainer = dayPane.querySelector('.custom-cats');
+      if(!customCatsContainer) return;
+
+      let catBox = Array.from(customCatsContainer.querySelectorAll('.category')).find(b =>
+        (b.querySelector('.cat-name-input')?.value || "") === li.category);
+      if(!catBox){
+        catBox = addCustomCategory(newDayId, customCatsContainer, li.category);
+      }
+      const subsBox = catBox.querySelector('.custom-subs');
+      let subBox = Array.from(subsBox.querySelectorAll('.subsection')).find(s =>
+        (s.querySelector('.sub-title-input')?.value || "") === li.subSection);
+      if(!subBox){
+        subBox = addCustomSubsection(newDayId, catBox, subsBox, li.subSection);
+      }
+      const tbody = subBox.querySelector('table tbody');
+      const tr = addItemRow(tbody, {
+        day:newDayId, ci:'cust', si:'cust',
+        subtitle:li.subSection, catname:li.category, custom:true
+      });
+      fillRowFields(tr, li);
+    }
+  });
+
+  // Logistics — clear & repopulate into logistics-cat of first day pane
+  const firstPane = document.querySelector('.day-pane');
+  if(firstPane){
+    const logCat = firstPane.querySelector('.logistics-cat');
+    if(logCat){
+      const logTbody = logCat.querySelector('tbody');
+      if(logTbody) logTbody.innerHTML = "";
+      (data.logistics||[]).forEach(lg=>{
+        addLogisticsRowInto(logTbody, {
+          vehicle:lg.vehicle, route:lg.route, qty:lg.qty, rate:lg.rate,
+          remarkClient:(lg.remarkClient!=null?lg.remarkClient:lg.remark), remarkDoer:lg.remarkDoer,
+          manualAmt:lg.manualAmt, amount:lg.amount
+        });
+      });
+    }
+  }
+
+  // Summary
+  if(data.summary){
+    document.getElementById('mgmtPct').value = data.summary.mgmtPct ?? 10;
+    document.getElementById('hotelCoord').value = data.summary.hotelCoord ?? 0;
+    document.getElementById('igstPct').value = data.summary.igstPct ?? 18;
+    document.getElementById('sgstPct').value = data.summary.sgstPct ?? 9;
+    document.getElementById('cgstPct').value = data.summary.cgstPct ?? 9;
+    if(data.summary.gstPct !== undefined && data.summary.igstPct === undefined){
+      document.getElementById('igstPct').value = data.summary.gstPct;
+      document.getElementById('sgstPct').value = 0;
+      document.getElementById('cgstPct').value = 0;
+    }
+    // Tax type (infer for older records without taxType)
+    let tt = data.summary.taxType;
+    if(!tt){
+      const s = parseFloat(data.summary.sgstPct)||0;
+      const c = parseFloat(data.summary.cgstPct)||0;
+      tt = (s>0 || c>0) ? 'cs' : 'igst';
+    }
+    const ttEl = document.querySelector(`input[name="taxType"][value="${tt}"]`);
+    if(ttEl) ttEl.checked = true;
+    setTaxType();
+  }
+  recalc();
+}
+
+function fillRowFields(tr, li){
+  if(tr.querySelector('.f-itemname')) tr.querySelector('.f-itemname').value = li.item || "";
+  tr.querySelector('.f-desc').value = li.description || "";
+  tr.querySelector('.f-size').value = li.size || "";
+  tr.querySelector('.f-sqft').value = li.sqft || "";
+  tr.querySelector('.f-days').value = li.days || "";
+  tr.querySelector('.f-qty').value = li.qty || "";
+  tr.querySelector('.f-rate').value = li.rate || "";
+  const useEl = tr.querySelector('.f-usesqft');
+  if(useEl) useEl.checked = !!li.useSqft;
+  const rcEl = tr.querySelector('.f-remark-client');
+  if(rcEl) rcEl.value = (li.remarkClient!=null ? li.remarkClient : (li.remark||"")) || "";
+  const rdEl = tr.querySelector('.f-remark-doer');
+  if(rdEl) rdEl.value = li.remarkDoer || "";
+  const amtEl = tr.querySelector('.f-amount');
+  if(amtEl && li.manualAmt){
+    amtEl.value = (li.amount !== undefined && li.amount !== null) ? li.amount : "";
+    tr.dataset.manualAmt = "1";
+  }
+}
+
+// ===================== RENAME / EDIT (per-event only) =====================
+async function editCategoryName(pencilEl){
+  const catBox = pencilEl.closest('.category');
+  const displaySpan = catBox.querySelector('.cat-name-display');
+  const oldName = displaySpan.textContent.trim();
+  const newName = window.prompt("Rename category (this event only):", oldName);
+  if(!newName || newName.trim() === "" || newName === oldName) return;
+
+  displaySpan.textContent = newName;
+  catBox.querySelectorAll('tr').forEach(tr => tr.dataset.catname = newName);
+}
+
+async function editSubsectionName(pencilEl){
+  const subDiv = pencilEl.closest('.subsection');
+  const displaySpan = subDiv.querySelector('.sub-title-display');
+  const oldName = displaySpan.textContent.trim();
+  const newName = window.prompt("Rename sub-section (this event only):", oldName);
+  if(!newName || newName.trim() === "" || newName === oldName) return;
+
+  displaySpan.textContent = newName;
+  subDiv.querySelectorAll('tr').forEach(tr => tr.dataset.subtitle = newName);
+}
+
+function deleteSubsection(crossEl, catName, subTitle){
+  const choice = window.prompt(
+    `Delete sub-section "${subTitle}"?\n\n` +
+    `Type "1" to Keep the items (only remove sub-section header)\n` +
+    `Type "2" to Delete items too (remove sub-section + all items)\n` +
+    `Or leave blank / press Cancel to abort.`
+  );
+  if(!choice) return;
+  const trimmed = choice.trim();
+  const keepItems = trimmed === "1";
+  const deleteBoth = trimmed === "2";
+  if(!keepItems && !deleteBoth){
+    alert("Invalid choice. Sub-section not deleted.");
+    return;
+  }
+
+  const subDiv = crossEl.closest('.subsection');
+  if(!subDiv) return;
+
+  if(keepItems){
+    const titleDiv = subDiv.querySelector('.subsection-title');
+    if(titleDiv) titleDiv.remove();
+    subDiv.querySelectorAll('tr').forEach(tr => tr.dataset.subtitle = "");
+  } else {
+    subDiv.remove();
+  }
+
+  const cat = CATEGORIES.find(c => c.name === catName);
+  if(cat){
+    if(keepItems){
+      const sub = cat.subs.find(s => s.title === subTitle);
+      if(sub){
+        cat.subs = cat.subs.filter(s => s.title !== subTitle);
+      }
+    } else {
+      cat.subs = cat.subs.filter(s => s.title !== subTitle);
+    }
+  }
+
+  recalc();
+}
+
+async function editItemName(pencilEl, catName, subName){
+  const td = pencilEl.closest('.item-name');
+  const oldName = td.childNodes[0].nodeValue.trim();
+  const newName = window.prompt("Rename item (this event only):", oldName);
+  if(!newName || newName.trim() === "" || newName === oldName) return;
+
+  td.childNodes[0].nodeValue = newName;
+  const tr = td.closest('tr');
+  if(tr) tr.dataset.item = newName;
+}
+
+// ===================== INIT =====================
+async function loadLibrary(){
+  try{
+    const res = await fetch(`${SCRIPT_URL}?action=getLibrary`);
+    const data = await res.json();
+    const capFirst = (s) => {
+      if(!s) return s;
+      return s.charAt(0).toUpperCase() + s.slice(1);
+    };
+    CATEGORIES = (data.categories || []).map(c => ({
+      name: capFirst(c.name),
+      subs: (c.subs || []).map(s => ({
+        title: capFirst(s.title),
+        items: (s.items || []).map(i => ({ name: capFirst(i.name || i) }))
+      }))
+    }));
+  } catch(err){
+    console.warn("Failed to load library:", err);
+    CATEGORIES = [];
+  }
+}
+
+function showLoading(msg){
+  const ov = document.getElementById('loadingOverlay');
+  if(!ov) return;
+  document.getElementById('loadingMsg').textContent = msg || 'Loading...';
+  ov.classList.remove('hide');
+}
+function hideLoading(){
+  const ov = document.getElementById('loadingOverlay');
+  if(!ov) return;
+  ov.classList.add('hide');
+  setTimeout(() => { ov.style.display = 'none'; }, 300);
+}
+
+async function reloadLibrary(){
+  const btn = document.getElementById('reloadBtn');
+  if(btn) btn.classList.add('spinning');
+  showLoading('Refreshing library...');
+  try {
+    const snapshot = collectPayload();
+
+    await loadLibrary();
+
+    days = []; dayCounter = 0;
+    document.getElementById('dayPanes').innerHTML = "";
+    (snapshot.days || [{ id: "day1", label: "Day 1", date: "" }]).forEach(d => {
+      dayCounter++;
+      const id = "day" + dayCounter;
+      days.push({ id, label: d.label, date: d.date });
+      buildDayPane(id);
+      if(d.date){
+        const di = document.querySelector(`.day-date[data-day="${id}"]`);
+        if(di) di.value = d.date;
+      }
+    });
+    renderDayTabs();
+    if(days.length > 0) switchDay(days[0].id);
+
+    const oldToNew = {};
+    (snapshot.days || []).forEach((d, i) => { if(days[i]) oldToNew[d.id] = days[i].id; });
+
+    (snapshot.lineItems || []).forEach(li => {
+      const newDayId = oldToNew[li.dayId] || days[0]?.id;
+      if(!newDayId) return;
+      const catIdx = CATEGORIES.findIndex(c => c.name === li.category);
+
+      if(catIdx >= 0){
+        if(li.isCustom){
+          const cat = CATEGORIES[catIdx];
+          if(!li.subSection || li.subSection.trim() === ""){
+            const directTable = document.querySelector(`table[data-day="${newDayId}"][data-cat="${catIdx}"][data-sub="direct"]`);
+            if(!directTable) return;
+            const tr = addItemRow(directTable.querySelector('tbody'), {
+              day:newDayId, ci:catIdx, si:'direct', subtitle:"", catname:li.category, custom:true
+            });
+            fillRowFields(tr, li);
+            return;
+          }
+          const siIdx = cat.subs.findIndex(s => s.title === li.subSection);
+          if(siIdx < 0) return;
+          const table = document.querySelector(`table[data-day="${newDayId}"][data-cat="${catIdx}"][data-sub="${siIdx}"]`);
+          if(!table) return;
+          const tr = addItemRow(table.querySelector('tbody'), {
+            day:newDayId, ci:catIdx, si:siIdx, subtitle:li.subSection, catname:li.category, custom:true
+          });
+          fillRowFields(tr, li);
+        } else {
+          const rows = document.querySelectorAll(`tr[data-day="${newDayId}"][data-cat="${catIdx}"]`);
+          rows.forEach(tr => {
+            if(tr.dataset.item === li.item && (tr.dataset.subtitle||"") === (li.subSection||"") && tr.dataset.custom !== "1"){
+              fillRowFields(tr, li);
+            }
+          });
+        }
+      } else {
+        const dayPane = document.getElementById(newDayId);
+        if(!dayPane) return;
+        const customCatsContainer = dayPane.querySelector('.custom-cats');
+        if(!customCatsContainer) return;
+        let catBox = Array.from(customCatsContainer.querySelectorAll('.category')).find(b =>
+          (b.querySelector('.cat-name-input')?.value || "") === li.category);
+        if(!catBox){
+          catBox = addCustomCategory(newDayId, customCatsContainer, li.category);
+        }
+        const subsBox = catBox.querySelector('.custom-subs');
+        let subBox = Array.from(subsBox.querySelectorAll('.subsection')).find(s =>
+          (s.querySelector('.sub-title-input')?.value || "") === li.subSection);
+        if(!subBox){
+          subBox = addCustomSubsection(newDayId, catBox, subsBox, li.subSection);
+        }
+        const tbody = subBox.querySelector('table tbody');
+        const tr = addItemRow(tbody, {
+          day:newDayId, ci:'cust', si:'cust',
+          subtitle:li.subSection, catname:li.category, custom:true
+        });
+        fillRowFields(tr, li);
+      }
+    });
+
+    const firstPane = document.querySelector('.day-pane');
+    if(firstPane){
+      const logCat = firstPane.querySelector('.logistics-cat');
+      if(logCat){
+        (snapshot.logistics || []).forEach(lg => {
+          addLogisticsRowInto(logCat.querySelector('tbody'), lg);
+        });
+      }
+    }
+
+    recalc();
+  } catch(err){
+    console.warn('Reload failed:', err);
+    alert('Reload failed. Please check your connection.');
+  } finally {
+    if(btn) btn.classList.remove('spinning');
+    hideLoading();
+  }
+}
+
+(async function init(){
+  if(window._cresInitDone) return;
+  window._cresInitDone = true;
+  showLoading('Loading library...');
+  await loadLibrary();
+  buildLogistics();
+  if(days.length === 0) addDay("Day 1");
+  ['mgmtPct','hotelCoord','igstPct','sgstPct','cgstPct'].forEach(id=>document.getElementById(id).addEventListener('input', recalc));
+  document.getElementById('actionsNew').style.display='flex';
+  setTaxType();
+  recalc();
+  hideLoading();
+
+  window.addEventListener('beforeunload', (e) => {
+    if(hasUnsavedContent()){
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    }
+  });
+})();
+
+let _spProceed = null;
+function showSavePrompt(proceed){
+  _spProceed = proceed;
+  document.getElementById('savePromptOverlay').style.display = 'flex';
+}
+function _spHide(){ document.getElementById('savePromptOverlay').style.display = 'none'; }
+document.getElementById('spCancel').onclick = () => { _spHide(); _spProceed = null; };
+document.getElementById('spDont').onclick = () => { _spHide(); const p = _spProceed; _spProceed = null; if(p) p(); };
+document.getElementById('spSave').onclick = async () => {
+  const p = _spProceed; _spProceed = null; _spHide();
+  const ok = await submitForm(currentEventId ? 'updateCurrent' : 'create');
+  if(ok && p) p();
+};
+
+function hasUnsavedContent(){
+  const client = (document.getElementById('client')?.value || "").trim();
+  const eventName = (document.getElementById('eventName')?.value || "").trim();
+  const venue = (document.getElementById('venue')?.value || "").trim();
+  const company = (document.getElementById('company')?.value || "").trim();
+  if(client || eventName || venue || company) return true;
+
+  const inputs = document.querySelectorAll(
+    '.day-pane input.f-qty, .day-pane input.f-rate, .day-pane input.f-days, ' +
+    '.day-pane input.f-sqft, .day-pane input.f-desc, .day-pane input.f-size, ' +
+    '.day-pane input.f-amount, .day-pane input.f-remark-client, .day-pane input.f-remark-doer, ' +
+    '.day-pane input.f-route, .day-pane input.f-itemname, .day-pane input.f-vehicle-other'
+  );
+  for(const inp of inputs){
+    if((inp.value || "").trim() !== "") return true;
+  }
+  const sels = document.querySelectorAll('.day-pane select.f-vehicle-sel');
+  for(const s of sels){ if((s.value||"").trim() !== "") return true; }
+  return false;
+}
+</script>
+
+</body>
+</html>
