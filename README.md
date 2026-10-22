@@ -5,22 +5,23 @@ logistics, versions, calculation, client sheet layout) works exactly as before.
 
 ## What's new
 
-1. **Client Costing | Internal (Vendor) Costing switch** (above the day tabs)
-   - Items, days, categories, sub-sections and logistics vehicle/route are shared.
-   - Description, size, sqft, days, qty, rate, amount and both remarks are separate per view.
-   - Summary (mgmt fee %, hotel coordination, tax type) is separate per view; the maths is the same.
-   - The internal view turns the page teal/orange and shows a Client vs Internal margin box.
-2. **Two sheets on submit**
-   - Client costing: same file and layout as today (`Estimate - <event> - <client>`).
-   - Internal costing: a separate file `Internal - <event> - <client>` in the same Drive folder,
-     same V1/V2 tabs, no payment terms or bank details, plus a Client vs Internal block.
-   - Rows filled only in the internal view never appear on the client sheet.
-   - Delete version / delete event also removes the internal tab / file.
+1. **Vendor Amount column** right after Amount, in every item table and in Logistics.
+   - Typed directly (accepts sums like `15000*3`). Everything else in the row is shared.
+   - Summary card shows a Vendor box: vendor subtotal, vendor grand total (same mgmt fee,
+     hotel and tax settings as the client), and margin.
+2. **Two sheets on submit**, identical layout:
+   - `Estimate - <event> - <client>` titled **CRES — CLIENT COSTING**, Amount column = Amount.
+   - `Vendor Costing - <event> - <client>` (separate file, same folder) titled
+     **CRES — VENDOR COSTING**, Amount column = Vendor Amount. Same V1/V2 tabs.
+   - A row that has only a Vendor Amount (nothing else) appears only on the vendor sheet.
+   - Delete version / delete event also removes the vendor tab / file.
 3. **How to fill** guidance per library item (Library column D). Tap the small **i** next to an
-   item, or tick *Show "How to fill"* to see all of them.
+   item, or tick *Show "How to fill"*.
 
-Also fixed: very large events no longer hit the 50,000-character cell limit when saving
-(the hidden `_Data_` snapshot is now split across cells; old events still load).
+Also fixed:
+- Clicking or tabbing through the Amount box no longer freezes the auto amount (live portal has this bug).
+- Very large events no longer hit the 50,000-character cell limit when saving (hidden `_Data_`
+  snapshot is split across cells; old events still load).
 
 ## Test setup (does not touch the live portal)
 
@@ -48,8 +49,8 @@ Also fixed: very large events no longer hit the 50,000-character cell limit when
    URL stays the same.
 3. Copy this `index.html` into `CRES-TRIAL-PORTAL` with the live `SCRIPT_URL`.
 
-Old events open normally; their internal view starts empty and the internal file is created the
-first time they are saved.
+Old events open normally; their Vendor Amount column starts empty and the vendor file is created
+the first time they are saved.
 
 ## Editing guidance
 
@@ -59,5 +60,5 @@ run `seedHowToFillOverwrite` (this replaces your edits).
 ## Note on access
 
 The portal has no login, and the web app is open to anyone with the `/exec` URL. That URL is in
-the page source, so internal (vendor) numbers can be read by anyone who has the portal link.
+the page source, so vendor numbers can be read by anyone who has the portal link.
 Add a PIN or Google sign-in before sharing widely.

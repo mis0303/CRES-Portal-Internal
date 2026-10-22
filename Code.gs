@@ -2,10 +2,10 @@ var FOLDER_NAME = "CRES Estimates";
 var INDEX_SHEET = "Index";
 var LIBRARY_SHEET = "Library";
 
-// ===== INTERNAL VIEW (new) =====
-// Index columns 9 & 10 hold the separate Internal (vendor) costing file per event.
-var IDX_INTERNAL_ID_COL = 9;   // I: InternalFileID
-var IDX_INTERNAL_URL_COL = 10; // J: InternalURL
+// ===== VENDOR COSTING (new) =====
+// Index columns 9 & 10 hold the separate Vendor Costing file per event.
+var IDX_VENDOR_ID_COL = 9;   // I: VendorFileID
+var IDX_VENDOR_URL_COL = 10; // J: VendorURL
 var LIB_GUIDE_COL = 4;         // D: How to fill
 var SNAPSHOT_CHUNK = 45000;    // a Sheets cell holds max 50,000 chars
 
@@ -138,21 +138,21 @@ function setup() {
     idx.setColumnWidth(6, 280);
   }
   setupLibrary_();
-  ensureIndexInternalCols_();
+  ensureIndexVendorCols_();
   ensureLibraryGuideCol_();
   Browser.msgBox("Setup complete. Folder ready: " + folder.getName());
 }
 
-// Adds "InternalFileID" / "InternalURL" headers to Index if missing (safe to run many times)
-function ensureIndexInternalCols_() {
+// Adds "VendorFileID" / "VendorURL" headers to Index if missing (safe to run many times)
+function ensureIndexVendorCols_() {
   var idx = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(INDEX_SHEET);
   if (!idx) return;
-  var h = idx.getRange(1, IDX_INTERNAL_ID_COL, 1, 2).getValues()[0];
-  if (h[0] !== "InternalFileID" || h[1] !== "InternalURL") {
-    idx.getRange(1, IDX_INTERNAL_ID_COL, 1, 2).setValues([["InternalFileID", "InternalURL"]])
-      .setFontWeight("bold").setBackground("#0f3d3e").setFontColor("white");
-    idx.setColumnWidth(IDX_INTERNAL_ID_COL, 280);
-    idx.setColumnWidth(IDX_INTERNAL_URL_COL, 280);
+  var h = idx.getRange(1, IDX_VENDOR_ID_COL, 1, 2).getValues()[0];
+  if (h[0] !== "VendorFileID" || h[1] !== "VendorURL") {
+    idx.getRange(1, IDX_VENDOR_ID_COL, 1, 2).setValues([["VendorFileID", "VendorURL"]])
+      .setFontWeight("bold").setBackground("#0f6b5c").setFontColor("white");
+    idx.setColumnWidth(IDX_VENDOR_ID_COL, 280);
+    idx.setColumnWidth(IDX_VENDOR_URL_COL, 280);
   }
 }
 
@@ -467,9 +467,9 @@ function deleteVersion_(payload) {
   var dataSheet = ss.getSheetByName("_Data_" + version);
   if (dataSheet) ss.deleteSheet(dataSheet);
 
-  // Internal file: remove the same version tab (never the last remaining tab)
+  // Vendor file: remove the same version tab (never the last remaining tab)
   try {
-    var iss = openInternalFile_(payload.eventId);
+    var iss = openVendorFile_(payload.eventId);
     if (iss) {
       var isheet = iss.getSheetByName(version);
       if (isheet && iss.getSheets().length > 1) iss.deleteSheet(isheet);
@@ -496,8 +496,8 @@ function deleteEvent_(payload) {
   var file = DriveApp.getFileById(info.fileId);
   file.setTrashed(true);
 
-  // Internal file goes to Trash too
-  var intInfo = findInternalFile_(payload.eventId);
+  // Vendor file goes to Trash too
+  var intInfo = findVendorFile_(payload.eventId);
   if (intInfo && intInfo.fileId) {
     try { DriveApp.getFileById(intInfo.fileId).setTrashed(true); } catch (e) {}
   }
@@ -545,15 +545,15 @@ function createEvent_(payload) {
 
   // Create V1
   var version = "V1";
-  writeVersion_(newSS, version, clientPayload_(payload));
-  writeSnapshot_(newSS, version, payload); // full payload (client + internal) for reloading
+  writeVersion_(newSS, version, clientPayload_(payload), "client");
+  writeSnapshot_(newSS, version, payload); // full payload (incl. vendor amounts) for reloading
   newSS.deleteSheet(defaultSheet);
 
   var eventId = "EVT-" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd-HHmmss");
   appendToIndex_(eventId, payload.header, newSS.getId(), newSS.getUrl(), version);
 
-  var internalUrl = writeInternal_(eventId, version, payload);
-  return { status: "success", eventId: eventId, version: version, sheetUrl: newSS.getUrl(), internalUrl: internalUrl };
+  var vendorUrl = writeVendor_(eventId, version, payload);
+  return { status: "success", eventId: eventId, version: version, sheetUrl: newSS.getUrl(), vendorUrl: vendorUrl };
 }
 
 function updateCurrent_(payload) {
@@ -568,11 +568,11 @@ function updateCurrent_(payload) {
   var dataSheet = ss.getSheetByName("_Data_" + version);
   if (dataSheet) ss.deleteSheet(dataSheet);
 
-  writeVersion_(ss, version, clientPayload_(payload));
+  writeVersion_(ss, version, clientPayload_(payload), "client");
   writeSnapshot_(ss, version, payload);
   updateIndex_(payload.eventId, payload.header, version);
-  var internalUrl = writeInternal_(payload.eventId, version, payload);
-  return { status: "success", eventId: payload.eventId, version: version, sheetUrl: ss.getUrl(), internalUrl: internalUrl };
+  var vendorUrl = writeVendor_(payload.eventId, version, payload);
+  return { status: "success", eventId: payload.eventId, version: version, sheetUrl: ss.getUrl(), vendorUrl: vendorUrl };
 }
 
 function saveAsNew_(payload) {
@@ -587,126 +587,85 @@ function saveAsNew_(payload) {
   });
   var newVersion = "V" + (maxV + 1);
 
-  writeVersion_(ss, newVersion, clientPayload_(payload));
+  writeVersion_(ss, newVersion, clientPayload_(payload), "client");
   writeSnapshot_(ss, newVersion, payload);
   updateIndex_(payload.eventId, payload.header, newVersion);
-  var internalUrl = writeInternal_(payload.eventId, newVersion, payload);
-  return { status: "success", eventId: payload.eventId, version: newVersion, sheetUrl: ss.getUrl(), internalUrl: internalUrl };
+  var vendorUrl = writeVendor_(payload.eventId, newVersion, payload);
+  return { status: "success", eventId: payload.eventId, version: newVersion, sheetUrl: ss.getUrl(), vendorUrl: vendorUrl };
 }
 
-// =================== INTERNAL VIEW (new) ===================
-// Payload from the portal: each line item / logistics row carries the client values
-// (as before) plus `hasClient` and an optional `internal` block with the vendor values.
-// `internalSummary` holds the internal view's fee / hotel / tax settings.
+// =================== VENDOR COSTING (new) ===================
+// Every line item / logistics row from the portal carries `amount` (client) and
+// `vendorAmount` (typed in the Vendor Amount column). Both sheets use writeVersion_():
+//   client sheet -> title "CLIENT COSTING", Amount column = amount
+//   vendor sheet -> title "VENDOR COSTING", Amount column = vendorAmount
+// Everything else (rows, days, logistics, summary maths, notes) is identical.
 
-// Client sheet gets only rows that have client values (rows filled only in the
-// internal view are skipped), without the internal block.
+// Client sheet skips rows that only have a Vendor Amount and nothing else.
+function hasClientValues_(r) {
+  return !!(r.description || r.size || r.sqft || r.days || r.qty || r.rate ||
+            (Number(r.amount) || 0) || r.remarkClient || r.remarkDoer || r.vehicle || r.route);
+}
 function clientPayload_(p) {
   var out = {};
   Object.keys(p).forEach(function(k) { out[k] = p[k]; });
-  out.lineItems = (p.lineItems || []).filter(function(li) { return li.hasClient !== false; })
-    .map(stripInternal_);
-  out.logistics = (p.logistics || []).filter(function(lg) { return lg.hasClient !== false; })
-    .map(stripInternal_);
-  delete out.internalSummary;
+  out.lineItems = (p.lineItems || []).filter(hasClientValues_);
+  out.logistics = (p.logistics || []).filter(hasClientValues_);
   return out;
 }
-function stripInternal_(o) {
-  var c = {};
-  Object.keys(o).forEach(function(k) { if (k !== "internal" && k !== "hasClient") c[k] = o[k]; });
-  return c;
-}
 
-// Internal sheet gets the same structure, but with the vendor values.
-function internalPayload_(p) {
-  var lineItems = (p.lineItems || []).filter(function(li) { return li.internal; }).map(function(li) {
-    var r = {
-      dayId: li.dayId, dayLabel: li.dayLabel, dayDate: li.dayDate,
-      category: li.category, subSection: li.subSection, item: li.item, isCustom: li.isCustom
-    };
-    Object.keys(li.internal).forEach(function(k) { r[k] = li.internal[k]; });
-    return r;
-  });
-  var logistics = (p.logistics || []).filter(function(lg) { return lg.internal; }).map(function(lg) {
-    var r = { vehicle: lg.vehicle, route: lg.route };
-    Object.keys(lg.internal).forEach(function(k) { r[k] = lg.internal[k]; });
-    return r;
-  });
-  return { header: p.header || {}, days: p.days || [], lineItems: lineItems, logistics: logistics,
-           summary: p.internalSummary || p.summary || {} };
-}
-
-// Same maths as the portal / client sheet
-function computeTotals_(p) {
-  var subtotal = 0;
-  (p.lineItems || []).forEach(function(li) { subtotal += (Number(li.amount) || 0); });
-  (p.logistics || []).forEach(function(lg) { subtotal += (Number(lg.amount) || 0); });
-  var s = p.summary || {};
-  var taxType = s.taxType || 'igst';
-  var mgmtPct = Number(s.mgmtPct) || 0, hotel = Number(s.hotelCoord) || 0;
-  var igstPct = taxType === 'igst' ? (Number(s.igstPct) || 0) : 0;
-  var sgstPct = taxType === 'cs' ? (Number(s.sgstPct) || 0) : 0;
-  var cgstPct = taxType === 'cs' ? (Number(s.cgstPct) || 0) : 0;
-  var mgmt = subtotal * mgmtPct / 100;
-  var pre = subtotal + mgmt + hotel;
-  var tax = pre * (igstPct + sgstPct + cgstPct) / 100;
-  return { subtotal: subtotal, mgmt: mgmt, pre: pre, tax: tax, grand: pre + tax };
-}
-
-// Writes the version tab into the event's Internal file (creates the file the first time).
-// Returns the Internal file URL ("" if something failed — the client save still stands).
-function writeInternal_(eventId, version, payload) {
+// Writes the version tab into the event's Vendor Costing file (created the first time).
+// Returns the file URL ("" if something failed - the client save still stands).
+function writeVendor_(eventId, version, payload) {
   try {
-    var iss = getOrCreateInternalFile_(eventId, payload.header || {});
-    var old = iss.getSheetByName(version);
+    var vss = getOrCreateVendorFile_(eventId, payload.header || {});
+    var old = vss.getSheetByName(version);
     if (old) {
-      if (iss.getSheets().length === 1) iss.insertSheet("_tmp");
-      iss.deleteSheet(old);
+      if (vss.getSheets().length === 1) vss.insertSheet("_tmp");
+      vss.deleteSheet(old);
     }
-    var ip = internalPayload_(payload);
-    var clientTotals = computeTotals_(clientPayload_(payload));
-    writeInternalVersion_(iss, version, ip, clientTotals);
-    // drop the blank default / temp tab once a real version exists
-    iss.getSheets().forEach(function(s) {
+    writeVersion_(vss, version, payload, "vendor");
+    // drop blank default / temp tabs once a real version exists
+    vss.getSheets().forEach(function(s) {
       var n = s.getName();
-      if ((n === "Sheet1" || n === "_tmp") && iss.getSheets().length > 1) iss.deleteSheet(s);
+      if ((n === "Sheet1" || n === "_tmp") && vss.getSheets().length > 1) vss.deleteSheet(s);
     });
     // keep version tabs in order V1, V2, ...
-    var vs = iss.getSheets().filter(function(s) { return /^V\d+$/.test(s.getName()); })
+    var vs = vss.getSheets().filter(function(s) { return /^V\d+$/.test(s.getName()); })
       .sort(function(a, b) { return parseInt(a.getName().slice(1)) - parseInt(b.getName().slice(1)); });
-    vs.forEach(function(s, i) { iss.setActiveSheet(s); iss.moveActiveSheet(i + 1); });
-    return iss.getUrl();
+    vs.forEach(function(s, i) { vss.setActiveSheet(s); vss.moveActiveSheet(i + 1); });
+    return vss.getUrl();
   } catch (err) {
-    Logger.log("Internal sheet failed: " + err.message);
+    Logger.log("Vendor sheet failed: " + err.message);
     return "";
   }
 }
 
-function getOrCreateInternalFile_(eventId, header) {
-  var existing = openInternalFile_(eventId);
+function getOrCreateVendorFile_(eventId, header) {
+  var existing = openVendorFile_(eventId);
   if (existing) return existing;
 
   var folder = getOrCreateFolder_();
-  var name = "Internal - " + (header.eventName || "Untitled") + " - " + (header.client || "");
-  var iss = SpreadsheetApp.create(name);
-  var file = DriveApp.getFileById(iss.getId());
+  var name = "Vendor Costing - " + (header.eventName || "Untitled") + " - " + (header.client || "");
+  var vss = SpreadsheetApp.create(name);
+  var file = DriveApp.getFileById(vss.getId());
   folder.addFile(file);
   DriveApp.getRootFolder().removeFile(file);
 
-  ensureIndexInternalCols_();
+  ensureIndexVendorCols_();
   var idx = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(INDEX_SHEET);
   var data = idx.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
     if (data[i][0] === eventId) {
-      idx.getRange(i + 1, IDX_INTERNAL_ID_COL, 1, 2).setValues([[iss.getId(), iss.getUrl()]]);
+      idx.getRange(i + 1, IDX_VENDOR_ID_COL, 1, 2).setValues([[vss.getId(), vss.getUrl()]]);
       break;
     }
   }
-  return iss;
+  return vss;
 }
 
-function openInternalFile_(eventId) {
-  var info = findInternalFile_(eventId);
+function openVendorFile_(eventId) {
+  var info = findVendorFile_(eventId);
   if (!info || !info.fileId) return null;
   try {
     var f = DriveApp.getFileById(info.fileId);
@@ -715,20 +674,20 @@ function openInternalFile_(eventId) {
   } catch (e) { return null; }
 }
 
-function findInternalFile_(eventId) {
+function findVendorFile_(eventId) {
   var idx = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(INDEX_SHEET);
-  if (!idx || idx.getLastRow() < 2 || idx.getLastColumn() < IDX_INTERNAL_ID_COL) return null;
-  var data = idx.getRange(2, 1, idx.getLastRow() - 1, IDX_INTERNAL_URL_COL).getValues();
+  if (!idx || idx.getLastRow() < 2 || idx.getLastColumn() < IDX_VENDOR_ID_COL) return null;
+  var data = idx.getRange(2, 1, idx.getLastRow() - 1, IDX_VENDOR_URL_COL).getValues();
   for (var i = 0; i < data.length; i++) {
     if (data[i][0] === eventId) {
-      return { fileId: data[i][IDX_INTERNAL_ID_COL - 1], url: data[i][IDX_INTERNAL_URL_COL - 1] };
+      return { fileId: data[i][IDX_VENDOR_ID_COL - 1], url: data[i][IDX_VENDOR_URL_COL - 1] };
     }
   }
   return null;
 }
 
-// Full JSON snapshot (client + internal) into hidden _Data_<version>, split into
-// 45k-char chunks down column A so long events never hit the 50k cell limit.
+// Full JSON snapshot into hidden _Data_<version>, split into 45k-char chunks down
+// column A so long events never hit the 50,000-char cell limit.
 function writeSnapshot_(ss, version, payload) {
   var name = "_Data_" + version;
   var existing = ss.getSheetByName(name);
@@ -742,194 +701,12 @@ function writeSnapshot_(ss, version, payload) {
   ds.hideSheet();
 }
 
-// Same layout as the client estimate (writeVersion_) but for vendor / internal costs.
-// No payment terms or bank details; adds a Client vs Internal comparison at the end.
-function writeInternalVersion_(ss, version, payload, clientTotals) {
-  var sheet = ss.insertSheet(version);
-  var row = 1;
-  var NCOL = 11;
-  var DARK = "#0f3d3e", ACCENT = "#d07a2c", BAND = "#f3f8f7";
-
-  sheet.getRange(row, 1, 1, NCOL).merge()
-    .setValue("CRES — INTERNAL COSTING (VENDOR)  (" + version + ")  — NOT FOR CLIENT")
-    .setFontWeight("bold").setFontSize(14).setFontColor("white")
-    .setBackground(DARK).setHorizontalAlignment("center");
-  sheet.setRowHeight(row, 28);
-  row += 2;
-
-  var h = payload.header || {};
-  [
-    ["Company:", h.company || ""],
-    ["Client:", h.client || ""],
-    ["Event:", h.eventName || ""],
-    ["Venue:", h.venue || ""],
-    ["Pax:", h.pax || ""],
-    ["Version:", version],
-    ["Updated:", Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm")]
-  ].forEach(function(pair) {
-    sheet.getRange(row, 1).setValue(pair[0]).setFontWeight("bold");
-    sheet.getRange(row, 2).setValue(pair[1]);
-    row++;
-  });
-  row++;
-
-  var COLS = ["Sr.", "Particulars", "Description", "Size", "Sqft", "Days", "Qty", "Rate", "Amount", "Remark (Client)", "Remark (Doer)"];
-  sheet.getRange(row, 1, 1, COLS.length).setValues([COLS])
-    .setFontWeight("bold").setBackground(DARK).setFontColor("white")
-    .setHorizontalAlignment("center");
-  sheet.setRowHeight(row, 22);
-  row++;
-
-  var byDay = {};
-  (payload.lineItems || []).forEach(function(li) {
-    if (!byDay[li.dayId]) byDay[li.dayId] = [];
-    byDay[li.dayId].push(li);
-  });
-
-  var subtotal = 0;
-  (payload.days || []).forEach(function(d) {
-    var items = byDay[d.id] || [];
-    if (items.length === 0) return;
-
-    sheet.getRange(row, 1, 1, NCOL).merge()
-      .setValue("DAY: " + d.label + (d.date ? " — " + d.date : ""))
-      .setFontWeight("bold").setFontColor("white").setBackground(ACCENT);
-    sheet.setRowHeight(row, 20);
-    row++;
-
-    var byCat = {};
-    items.forEach(function(it) {
-      if (!byCat[it.category]) byCat[it.category] = {};
-      if (!byCat[it.category][it.subSection]) byCat[it.category][it.subSection] = [];
-      byCat[it.category][it.subSection].push(it);
-    });
-
-    var catLetter = 65;
-    var dayTotal = 0;
-    Object.keys(byCat).forEach(function(catName) {
-      sheet.getRange(row, 1, 1, NCOL)
-        .setValues([[String.fromCharCode(catLetter++), catName, "", "", "", "", "", "", "", "", ""]])
-        .setFontWeight("bold").setBackground(BAND);
-      row++;
-      Object.keys(byCat[catName]).forEach(function(subName) {
-        if (subName) {
-          sheet.getRange(row, 2).setValue(subName)
-            .setFontWeight("bold").setFontColor(ACCENT).setFontStyle("italic");
-          row++;
-        }
-        byCat[catName][subName].forEach(function(it) {
-          sheet.getRange(row, 1, 1, NCOL).setValues([[
-            "", it.item, it.description || "", it.size || "",
-            it.sqft || "", it.days || "", it.qty || 0, it.rate || 0, it.amount || 0,
-            it.remarkClient || "", it.remarkDoer || ""
-          ]]);
-          dayTotal += (Number(it.amount) || 0);
-          row++;
-        });
-      });
-    });
-
-    sheet.getRange(row, 2).setValue(d.label + " Total").setFontWeight("bold");
-    sheet.getRange(row, 9).setValue(dayTotal).setFontWeight("bold").setNumberFormat("#,##0");
-    sheet.getRange(row, 1, 1, NCOL).setBackground(BAND);
-    row++;
-    subtotal += dayTotal;
-    row++;
-  });
-
-  if ((payload.logistics || []).length > 0) {
-    sheet.getRange(row, 1, 1, NCOL).merge()
-      .setValue("LOGISTICS")
-      .setFontWeight("bold").setFontColor("white").setBackground(ACCENT);
-    row++;
-    var logTotal = 0;
-    payload.logistics.forEach(function(lg) {
-      var label = (lg.vehicle || "") + (lg.route ? " — " + lg.route : "");
-      sheet.getRange(row, 1, 1, NCOL).setValues([[
-        "", label, "", "", "", "", lg.qty || 0, lg.rate || 0, lg.amount || 0, lg.remarkClient || "", lg.remarkDoer || ""
-      ]]);
-      logTotal += (Number(lg.amount) || 0);
-      row++;
-    });
-    sheet.getRange(row, 2).setValue("Logistics Total").setFontWeight("bold");
-    sheet.getRange(row, 9).setValue(logTotal).setFontWeight("bold").setNumberFormat("#,##0");
-    sheet.getRange(row, 1, 1, NCOL).setBackground(BAND);
-    row++;
-    subtotal += logTotal;
-    row++;
-  }
-
-  // Summary — exactly the client calculation, on internal numbers
-  var s = payload.summary || {};
-  var mgmtPct = Number(s.mgmtPct) || 0, hotel = Number(s.hotelCoord) || 0;
-  var taxType = s.taxType || 'igst';
-  var igstPct = taxType === 'igst' ? (Number(s.igstPct) || 0) : 0;
-  var sgstPct = taxType === 'cs' ? (Number(s.sgstPct) || 0) : 0;
-  var cgstPct = taxType === 'cs' ? (Number(s.cgstPct) || 0) : 0;
-  var mgmt = subtotal * mgmtPct / 100;
-  var preGst = subtotal + mgmt + hotel;
-  var igst = preGst * igstPct / 100;
-  var sgst = preGst * sgstPct / 100;
-  var cgst = preGst * cgstPct / 100;
-  var grand = preGst + igst + sgst + cgst;
-
-  sheet.getRange(row, 1, 1, NCOL).merge()
-    .setValue("INTERNAL SUMMARY")
-    .setFontWeight("bold").setFontColor("white").setBackground(DARK);
-  row++;
-  var sumRows = [
-    ["Subtotal", subtotal],
-    ["Management Fee (" + mgmtPct + "%)", mgmt],
-    ["Hotel Coordination Charges", hotel],
-    ["Sub Total before GST", preGst]
-  ];
-  if (taxType === 'cs') {
-    sumRows.push(["SGST (" + sgstPct + "%)", sgst]);
-    sumRows.push(["CGST (" + cgstPct + "%)", cgst]);
-  } else {
-    sumRows.push(["IGST (" + igstPct + "%)", igst]);
-  }
-  sumRows.forEach(function(p) {
-    sheet.getRange(row, 2).setValue(p[0]);
-    sheet.getRange(row, 9).setValue(p[1]).setNumberFormat("#,##0");
-    row++;
-  });
-  sheet.getRange(row, 2).setValue("GRAND TOTAL (INTERNAL)").setFontWeight("bold").setFontColor("white");
-  sheet.getRange(row, 9).setValue(grand).setFontWeight("bold").setFontColor("white").setNumberFormat("#,##0");
-  sheet.getRange(row, 1, 1, NCOL).setBackground(DARK);
-  sheet.setRowHeight(row, 24);
-  row += 2;
-
-  // Client vs Internal
-  var c = clientTotals || { subtotal: 0, grand: 0 };
-  var marginItems = c.subtotal - subtotal;
-  var marginGrand = c.grand - grand;
-  var pct = function(m, base) { return base ? (m / base) : 0; };
-  sheet.getRange(row, 1, 1, NCOL).merge()
-    .setValue("CLIENT vs INTERNAL")
-    .setFontWeight("bold").setFontColor("white").setBackground(ACCENT);
-  row++;
-  [
-    ["Client Subtotal (items)", c.subtotal, null],
-    ["Internal Subtotal (items)", subtotal, null],
-    ["Margin on items", marginItems, pct(marginItems, c.subtotal)],
-    ["Client Grand Total", c.grand, null],
-    ["Internal Grand Total", grand, null],
-    ["Difference (Grand Total)", marginGrand, pct(marginGrand, c.grand)]
-  ].forEach(function(r) {
-    sheet.getRange(row, 2).setValue(r[0]);
-    sheet.getRange(row, 9).setValue(r[1]).setNumberFormat("#,##0");
-    if (r[2] !== null) sheet.getRange(row, 10).setValue(r[2]).setNumberFormat("0.0%");
-    if (r[2] !== null) sheet.getRange(row, 1, 1, NCOL).setFontWeight("bold");
-    row++;
-  });
-
-  var widths = [6, 32, 22, 18, 8, 8, 8, 12, 14, 20, 20];
-  widths.forEach(function(w, i) { sheet.setColumnWidth(i + 1, w * 8); });
-}
-
 // =================== WRITE VERSION SHEET ===================
-function writeVersion_(ss, version, payload) {
+// mode: "client" (default) -> CLIENT COSTING with Amount
+//       "vendor"            -> VENDOR COSTING with Vendor Amount (everything else identical)
+function writeVersion_(ss, version, payload, mode) {
+  var isVendor = mode === "vendor";
+  var amtOf = function(r) { return isVendor ? (Number(r.vendorAmount) || 0) : (Number(r.amount) || 0); };
   var sheet = ss.insertSheet(version);
   var row = 1;
   var NCOL = 11; // Amount(9) + Remark Client(10) + Remark Doer(11)
@@ -953,7 +730,7 @@ function writeVersion_(ss, version, payload) {
 
   // Title bar
   sheet.getRange(row, 1, 1, NCOL).merge()
-    .setValue("CRES \u2014 EVENT ESTIMATE  (" + version + ")")
+    .setValue("CRES \u2014 " + (isVendor ? "VENDOR COSTING" : "CLIENT COSTING") + "  (" + version + ")")
     .setFontWeight("bold").setFontSize(14).setFontColor("white")
     .setBackground("#10243e").setHorizontalAlignment("center");
   sheet.setRowHeight(row, 28);
@@ -977,7 +754,7 @@ function writeVersion_(ss, version, payload) {
   row++;
 
   // Column headers
-  var COLS = ["Sr.", "Particulars", "Description", "Size", "Sqft", "Days", "Qty", "Rate", "Amount", "Remark (Client)", "Remark (Doer)"];
+  var COLS = ["Sr.", "Particulars", "Description", "Size", "Sqft", "Days", "Qty", "Rate", (isVendor ? "Vendor Amount" : "Amount"), "Remark (Client)", "Remark (Doer)"];
   sheet.getRange(row, 1, 1, COLS.length).setValues([COLS])
     .setFontWeight("bold").setBackground("#10243e").setFontColor("white")
     .setHorizontalAlignment("center");
@@ -1030,10 +807,10 @@ function writeVersion_(ss, version, payload) {
           var rc = (it.remarkClient != null ? it.remarkClient : (it.remark || ""));
           sheet.getRange(row, 1, 1, NCOL).setValues([[
             "", it.item, it.description || "", it.size || "",
-            it.sqft || "", it.days || "", it.qty || 0, it.rate || 0, it.amount || 0,
+            it.sqft || "", it.days || "", it.qty || 0, it.rate || 0, amtOf(it),
             rc, it.remarkDoer || ""
           ]]);
-          dayTotal += (it.amount || 0);
+          dayTotal += amtOf(it);
           row++;
         });
       });
@@ -1058,9 +835,9 @@ function writeVersion_(ss, version, payload) {
       var label = (lg.vehicle || "") + (lg.route ? " \u2014 " + lg.route : "");
       var rc = (lg.remarkClient != null ? lg.remarkClient : (lg.remark || ""));
       sheet.getRange(row, 1, 1, NCOL).setValues([[
-        "", label, "", "", "", "", lg.qty || 0, lg.rate || 0, lg.amount || 0, rc, lg.remarkDoer || ""
+        "", label, "", "", "", "", lg.qty || 0, lg.rate || 0, amtOf(lg), rc, lg.remarkDoer || ""
       ]]);
-      logTotal += (lg.amount || 0);
+      logTotal += amtOf(lg);
       row++;
     });
     sheet.getRange(row, 2).setValue("Logistics Total").setFontWeight("bold");
@@ -1128,9 +905,7 @@ function writeVersion_(ss, version, payload) {
   // Column widths (10 & 11 = the two Remark columns)
   var widths = [6, 32, 22, 18, 8, 8, 8, 12, 14, 20, 20];
   widths.forEach(function(w, i) { sheet.setColumnWidth(i + 1, w * 8); });
-
-  // Raw JSON snapshot — reliable round-trip (chunked: one cell holds max 50,000 chars)
-  writeSnapshot_(ss, version, payload);
+  // (hidden _Data_ snapshot is written by the caller, client file only)
 }
 
 

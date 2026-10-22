@@ -208,29 +208,22 @@
   .reload-btn:hover{background:rgba(200,155,60,0.15); color:white;}
   .reload-btn.spinning svg{animation: cres-spin 0.8s linear infinite;}
 
-  /* ===== INTERNAL VIEW (new) ===== */
-  /* Internal view re-colours the whole page so nobody confuses it with the client costing */
-  body.view-internal{ --navy:#0f3d3e; --navy-deep:#0a2b2c; --gold:#d07a2c; --gold-soft:#f2d3b5; --paper:#eef4f3; }
-  .view-switch{position:sticky; top:0; z-index:50; display:flex; gap:8px; align-items:center; flex-wrap:wrap;
-    background:var(--paper); padding:10px 0; margin-bottom:10px; border-bottom:1px solid var(--line);}
-  .vs-btn{flex:1; min-width:150px; padding:11px 12px; border-radius:8px; border:1px solid var(--line); background:white;
-    cursor:pointer; font-weight:700; font-size:14px; color:var(--muted); font-family:inherit;}
-  .vs-btn.active{background:var(--navy); color:white; border-color:var(--navy);}
-  .vs-btn .vs-amt{display:block; font-size:12px; font-weight:600; opacity:.8; margin-top:2px;}
-  .guide-toggle{display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:var(--navy); cursor:pointer; white-space:nowrap;}
-  .guide-toggle input{width:auto; margin:0; padding:0;}
-  .internal-banner{display:none; background:#fff3e6; border:1px solid var(--gold-soft); border-left:4px solid var(--gold);
-    border-radius:8px; padding:10px 14px; font-size:13px; color:#6b3a0f; margin-bottom:14px;}
-  body.view-internal .internal-banner{display:block;}
-  .view-tag{display:none; margin-left:8px; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:800;
-    letter-spacing:.6px; background:var(--gold); color:white; vertical-align:middle;}
-  body.view-internal .view-tag{display:inline-block;}
-  .margin-box{display:none; margin-top:16px; border:1px dashed var(--gold); border-radius:8px; padding:10px 14px; background:#fffaf4;}
-  body.view-internal .margin-box{display:block;}
-  .margin-box .sum-row{font-size:14px;}
-  .margin-box .pos{color:var(--ok); font-weight:700;} .margin-box .neg{color:var(--err); font-weight:700;}
+  /* ===== Vendor Amount column (new) ===== */
+  .c-vamt{width:10%;}
+  .item-table th.c-vamt{color:#0f6b5c;}
+  .item-table td.c-vamt input.f-vamount{width:100%; padding:7px 9px; font-size:14px; text-align:right; font-weight:600;
+    color:#0f6b5c; background:#eef7f4; border-color:#bfe0d6;}
+  .item-table td.c-vamt input.f-vamount::placeholder{color:#7aa79b; font-weight:400; font-style:italic;}
+  .vendor-box{margin-top:16px; border:1px dashed #6fb3a3; border-radius:8px; padding:10px 14px; background:#f3faf8;}
+  .vendor-box .vb-title{font-size:12px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; color:#0f6b5c; margin-bottom:4px;}
+  .vendor-box .sum-row{font-size:14px;}
+  .vendor-box .pos{color:var(--ok); font-weight:700;} .vendor-box .neg{color:var(--err); font-weight:700;}
+  @media (max-width:760px){ .item-table td.c-vamt input.f-vamount{text-align:left;} }
 
-  /* How to fill */
+  /* ===== How to fill (new) ===== */
+  .guide-bar{display:flex; justify-content:flex-end; margin:-6px 0 10px;}
+  .guide-toggle{display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:var(--navy); cursor:pointer;}
+  .guide-toggle input{width:auto; margin:0; padding:0;}
   .guide-i{display:inline-block; margin-left:6px; width:17px; height:17px; line-height:17px; text-align:center; border-radius:50%;
     background:var(--gold-soft); color:var(--navy); font-size:11px; font-weight:800; cursor:help; font-style:normal;}
   .guide-i:hover{background:var(--gold); color:white;}
@@ -247,7 +240,7 @@
 
 <div class="topbar">
   <div>
-    <div class="mark">CRES Portal <span class="view-tag">INTERNAL VIEW</span></div>
+    <div class="mark">CRES Portal</div>
     <div class="sub">Event Estimate — Internal Use Only</div>
   </div>
   <button type="button" class="reload-btn" id="reloadBtn" onclick="reloadLibrary()">
@@ -295,16 +288,7 @@
       </div>
     </div>
 
-    <!-- CLIENT / INTERNAL VIEW SWITCH (new) -->
-    <div class="view-switch" id="viewSwitch">
-      <button type="button" class="vs-btn active" data-view="client" onclick="setView('client')">Client Costing<span class="vs-amt" id="vsClientAmt">&#8377;0</span></button>
-      <button type="button" class="vs-btn" data-view="internal" onclick="setView('internal')">Internal (Vendor) Costing<span class="vs-amt" id="vsInternalAmt">&#8377;0</span></button>
-      <label class="guide-toggle"><input type="checkbox" id="guideAll" onchange="toggleAllGuides(this.checked)"> Show "How to fill"</label>
-    </div>
-    <div class="internal-banner">
-      <b>Internal view &mdash; vendor costs.</b> Items, days and categories are shared with the client costing; quantities, rates, amounts and remarks here are separate.
-      On submit these go to a separate <b>Internal</b> sheet &mdash; never to the client sheet.
-    </div>
+    <div class="guide-bar"><label class="guide-toggle"><input type="checkbox" id="guideAll" onchange="toggleAllGuides(this.checked)"> Show "How to fill"</label></div>
 
     <!-- DAY TABS -->
     <div class="day-tabs" id="dayTabs"></div>
@@ -312,7 +296,7 @@
 
     <!-- SUMMARY -->
     <div class="summary-card">
-      <h3><span id="summaryTitle">Estimate Summary</span><span class="view-tag">INTERNAL</span></h3>
+      <h3>Estimate Summary</h3>
       <div id="daySummaries"></div>
       <div class="sum-row" style="font-weight:700; color:var(--navy);"><span>Subtotal</span><span id="sumSubtotal">&#8377;0</span></div>
       <div class="sum-row"><span>Management Fee <input type="number" class="sum-input" id="mgmtPct" value="10" min="0" max="100" step="0.5">%</span><span id="sumMgmt">&#8377;0</span></div>
@@ -327,14 +311,12 @@
       <div class="sum-row"><span>CGST <input type="number" class="sum-input" id="cgstPct" value="9" min="0" max="100" step="0.5">%</span><span id="sumCgst">&#8377;0</span></div>
       <div class="sum-row grand"><span>Grand Total</span><span id="sumGrand">&#8377;0</span></div>
 
-      <!-- Client vs Internal (shown only in Internal view) -->
-      <div class="margin-box" id="marginBox">
-        <div class="sum-row"><span>Client Subtotal (items)</span><span id="mgClientSub">&#8377;0</span></div>
-        <div class="sum-row"><span>Internal Subtotal (items)</span><span id="mgIntSub">&#8377;0</span></div>
-        <div class="sum-row"><span><b>Margin on items</b></span><span id="mgItems">&#8377;0</span></div>
-        <div class="sum-row"><span>Client Grand Total</span><span id="mgClientGrand">&#8377;0</span></div>
-        <div class="sum-row"><span>Internal Grand Total</span><span id="mgIntGrand">&#8377;0</span></div>
-        <div class="sum-row"><span><b>Difference (Grand Total)</b></span><span id="mgGrand">&#8377;0</span></div>
+      <!-- Vendor costing (same calculation on Vendor Amount) -->
+      <div class="vendor-box" id="vendorBox">
+        <div class="vb-title">Vendor Costing</div>
+        <div class="sum-row"><span>Vendor Subtotal</span><span id="vSubtotal">&#8377;0</span></div>
+        <div class="sum-row"><span>Vendor Grand Total <small style="color:var(--muted)">(same fee &amp; tax as above)</small></span><span id="vGrand">&#8377;0</span></div>
+        <div class="sum-row"><span><b>Margin (Client &minus; Vendor subtotal)</b></span><span id="vMargin">&#8377;0</span></div>
       </div>
 
       <div class="actions" id="actionsNew" style="display:none;">
@@ -367,7 +349,7 @@
 
 <script>
 // ===================== CONFIG =====================
-// TEST backend (copy of the portal sheet + updated Code.gs). Do NOT point this at the live portal backend.
+// TEST backend (copy of the portal sheet). Do NOT point this at the live portal backend.
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzM6Iuk_8BKbd5opCandwHYCXv2LLj_u8JtDfnDMq3eA2OWaOp__rYyQxLyZ56H_X6aAw/exec";
 
 let CATEGORIES = []; // loaded from backend on init
@@ -431,7 +413,7 @@ function attachAmountCalc(inp, tr){
   const run = ()=>{
     const raw = inp.value;
     // Only a value the user actually typed counts as a manual amount. Just clicking or
-    // tabbing through the box must not freeze the auto amount (fix: it used to lock it).
+    // tabbing through the box must not freeze the auto amount.
     if(tr.dataset.amtTyped !== "1"){ recalc(); return; }
     tr.dataset.amtTyped = "0";
     if(/[+\-*/xX()]/.test(raw)){          // looks like a calculation
@@ -445,6 +427,39 @@ function attachAmountCalc(inp, tr){
   inp.addEventListener('blur', run);
   inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); run(); inp.blur(); } });
 }
+
+// ===== Vendor Amount (new) =====
+// Typed directly (no auto calc). Accepts sums like 15000*3 or 12000+3500.
+function attachVendorCalc(inp){
+  if(!inp) return;
+  const run = ()=>{
+    const raw = inp.value;
+    if(/[+\-*/xX()]/.test(raw)){
+      const v = evalAmount(raw);
+      if(v!=null) inp.value = v;
+    }
+    recalc();
+  };
+  inp.addEventListener('blur', run);
+  inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); run(); inp.blur(); } });
+}
+function vendorAmt(tr){
+  const el = tr.querySelector('.f-vamount');
+  if(!el) return 0;
+  const raw = (el.value||"").trim();
+  if(raw === "") return 0;
+  const n = /[+\-*/xX()]/.test(raw) ? evalAmount(raw) : parseFloat(raw);
+  return (n==null || isNaN(n)) ? 0 : n;
+}
+function vendorVal(tr){
+  const el = tr.querySelector('.f-vamount');
+  return (el && (el.value||"").trim() !== "") ? vendorAmt(tr) : "";
+}
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// How to fill
+function toggleGuide(el){ const td = el.closest('td'); if(td) td.classList.toggle('show-guide'); }
+function toggleAllGuides(on){ document.body.classList.toggle('guides-on', !!on); }
 // Size box: type a dimension/expression like 15ft*20ft (or 15*15, 20x20x3) and it
 // evaluates in place on blur/Enter -> the box shows the computed number. Units/letters ignored.
 function attachSizeCalc(inp, tr){
@@ -475,132 +490,6 @@ let dayCounter = 0;
 let currentEventId = null;
 let currentVersion = null;
 let currentEventName = null;
-
-// ===================== CLIENT / INTERNAL VIEW (new) =====================
-// One set of rows (items, days, categories are shared). Each row keeps two sets of
-// numbers: tr._vals.client and tr._vals.internal. The inputs on screen always show the
-// active VIEW; switching saves the visible values and paints the other set. All the
-// existing calc / sqft / manual-amount logic keeps working unchanged on whatever is visible.
-let VIEW = 'client';
-let ROW_SEQ = 0;
-const SUM_DEFAULT = () => ({ mgmtPct:10, hotelCoord:0, taxType:'igst', igstPct:18, sgstPct:9, cgstPct:9 });
-let SUM = { client: SUM_DEFAULT(), internal: SUM_DEFAULT() };
-const VAL_FIELDS = ['f-desc','f-size','f-sqft','f-days','f-qty','f-rate','f-remark-client','f-remark-doer'];
-
-function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function valueRows(){ return Array.from(document.querySelectorAll('.day-pane tr')).filter(tr => tr.querySelector('.f-qty')); }
-
-function rowRead(tr){
-  const v = {};
-  VAL_FIELDS.forEach(c => { const el = tr.querySelector('.'+c); if(el) v[c] = el.value; });
-  const u = tr.querySelector('.f-usesqft'); if(u) v.useSqft = u.checked;
-  const a = tr.querySelector('.f-amount');
-  v.manual = tr.dataset.manualAmt === "1" && !!a && a.value.trim() !== "";
-  v.amount = v.manual ? a.value : "";
-  return v;
-}
-function rowWrite(tr, v){
-  v = v || {};
-  VAL_FIELDS.forEach(c => { const el = tr.querySelector('.'+c); if(el) el.value = (v[c]!=null ? v[c] : ""); });
-  const u = tr.querySelector('.f-usesqft'); if(u) u.checked = !!v.useSqft;
-  const a = tr.querySelector('.f-amount'); if(a) a.value = v.manual ? v.amount : "";
-  tr.dataset.manualAmt = v.manual ? "1" : "0";
-}
-// payload record (as saved) -> stored values
-function valsFromRecord(r){
-  if(!r) return null;
-  return {
-    'f-desc': r.description || "", 'f-size': r.size || "", 'f-sqft': r.sqft || "", 'f-days': r.days || "",
-    'f-qty': r.qty || "", 'f-rate': r.rate || "",
-    'f-remark-client': (r.remarkClient!=null ? r.remarkClient : (r.remark||"")) || "", 'f-remark-doer': r.remarkDoer || "",
-    useSqft: !!r.useSqft, manual: !!r.manualAmt,
-    amount: r.manualAmt ? ((r.amount!==undefined && r.amount!==null) ? r.amount : "") : ""
-  };
-}
-function setStored(tr, view, vals){ tr._vals = tr._vals || {}; tr._vals[view] = vals; }
-
-function readSummary(){
-  return {
-    mgmtPct: document.getElementById('mgmtPct').value,
-    hotelCoord: document.getElementById('hotelCoord').value,
-    taxType: getTaxType(),
-    igstPct: document.getElementById('igstPct').value,
-    sgstPct: document.getElementById('sgstPct').value,
-    cgstPct: document.getElementById('cgstPct').value
-  };
-}
-function writeSummary(s){
-  s = s || SUM_DEFAULT();
-  ['mgmtPct','hotelCoord','igstPct','sgstPct','cgstPct'].forEach(k => { document.getElementById(k).value = (s[k]!=null ? s[k] : ""); });
-  const r = document.querySelector(`input[name="taxType"][value="${s.taxType||'igst'}"]`); if(r) r.checked = true;
-  setTaxType();
-}
-function storeVisible(){ valueRows().forEach(tr => setStored(tr, VIEW, rowRead(tr))); SUM[VIEW] = readSummary(); }
-function paintView(v){ valueRows().forEach(tr => rowWrite(tr, tr._vals ? tr._vals[v] : null)); writeSummary(SUM[v]); }
-
-function setView(v){
-  if(v === VIEW){ applyViewUI(); return; }
-  storeVisible();
-  paintView(v);
-  VIEW = v;
-  applyViewUI();
-  recalc();
-}
-// Back to the client view without swapping values (used when the form is rebuilt / reset)
-function resetView(){
-  VIEW = 'client';
-  SUM = { client: SUM_DEFAULT(), internal: SUM_DEFAULT() };
-  applyViewUI();
-}
-function applyViewUI(){
-  document.body.classList.toggle('view-internal', VIEW === 'internal');
-  document.querySelectorAll('.vs-btn').forEach(b => b.classList.toggle('active', b.dataset.view === VIEW));
-  const t = document.getElementById('summaryTitle');
-  if(t) t.textContent = VIEW === 'internal' ? 'Internal Summary (Vendor)' : 'Estimate Summary';
-}
-
-// Same maths as recalc()
-function amountFromVals(v){
-  if(!v) return 0;
-  if(v.manual) return parseFloat(v.amount) || 0;
-  const dys = parseFloat(v['f-days']);
-  const eDays = (isNaN(dys) || dys===0) ? 1 : dys;
-  const qty = parseFloat(v['f-qty']) || 0, rate = parseFloat(v['f-rate']) || 0, sqft = parseFloat(v['f-sqft']) || 0;
-  const mult = (v.useSqft && sqft>0) ? sqft : 1;
-  return eDays * qty * rate * mult;
-}
-function calcSummary(subtotal, s){
-  s = s || SUM_DEFAULT();
-  const tt = s.taxType || 'igst';
-  const mgmt = subtotal * (parseFloat(s.mgmtPct)||0) / 100;
-  const pre = subtotal + mgmt + (parseFloat(s.hotelCoord)||0);
-  const pct = tt === 'igst' ? (parseFloat(s.igstPct)||0) : ((parseFloat(s.sgstPct)||0) + (parseFloat(s.cgstPct)||0));
-  return { subtotal, pre, grand: pre + pre * pct / 100 };
-}
-function viewTotals(v){
-  let sub = 0;
-  valueRows().forEach(tr => { sub += amountFromVals(v === VIEW ? rowRead(tr) : (tr._vals ? tr._vals[v] : null)); });
-  return calcSummary(sub, v === VIEW ? readSummary() : SUM[v]);
-}
-function updateViewExtras(){
-  const c = viewTotals('client'), i = viewTotals('internal');
-  const set = (id, txt) => { const el = document.getElementById(id); if(el) el.textContent = txt; };
-  set('vsClientAmt', fmt(c.grand)); set('vsInternalAmt', fmt(i.grand));
-  set('mgClientSub', fmt(c.subtotal)); set('mgIntSub', fmt(i.subtotal));
-  set('mgClientGrand', fmt(c.grand)); set('mgIntGrand', fmt(i.grand));
-  const mark = (id, m, base) => {
-    const el = document.getElementById(id); if(!el) return;
-    const p = base ? ` (${(m/base*100).toFixed(1)}%)` : '';
-    el.textContent = (m<0 ? '-' : '') + fmt(Math.abs(m)) + p;
-    el.className = m < 0 ? 'neg' : (m > 0 ? 'pos' : '');
-  };
-  mark('mgItems', c.subtotal - i.subtotal, c.subtotal);
-  mark('mgGrand', c.grand - i.grand, c.grand);
-}
-
-// How to fill
-function toggleGuide(el){ const td = el.closest('td'); if(td) td.classList.toggle('show-guide'); }
-function toggleAllGuides(on){ document.body.classList.toggle('guides-on', !!on); }
 
 // ===================== MODE =====================
 let _bypassGuard = false;
@@ -638,7 +527,6 @@ function resetForm(){
   document.getElementById('cgstPct').value=9;
   const igstR = document.querySelector('input[name="taxType"][value="igst"]');
   if(igstR) igstR.checked = true;
-  resetView();
   if(typeof setTaxType === 'function') setTaxType();
   currentEventId=null; currentVersion=null; currentEventName=null;
 }
@@ -731,7 +619,7 @@ function buildDayPane(id){
       directTable.innerHTML = `<thead><tr>
         <th>Item</th><th class="c-desc">Description</th><th class="c-size">Size</th>
         <th class="c-sqft">Sqft</th><th class="c-days">Days</th>
-        <th class="c-qty">Qty</th><th class="c-rate">Rate</th><th class="c-amt">Amount</th><th class="c-remark c-rc">Remark (Client)</th><th class="c-remark c-rd">Remark (Doer)</th>
+        <th class="c-qty">Qty</th><th class="c-rate">Rate</th><th class="c-amt">Amount</th><th class="c-vamt">Vendor Amount</th><th class="c-remark c-rc">Remark (Client)</th><th class="c-remark c-rd">Remark (Doer)</th>
       </tr></thead><tbody></tbody>`;
       directTbody = directTable.querySelector('tbody');
       // Table sits above the "+ Add Item" button
@@ -778,7 +666,7 @@ function buildDayPane(id){
       table.innerHTML = `<thead><tr>
         <th>Item</th><th class="c-desc">Description</th><th class="c-size">Size</th>
         <th class="c-sqft">Sqft</th><th class="c-days">Days</th>
-        <th class="c-qty">Qty</th><th class="c-rate">Rate</th><th class="c-amt">Amount</th><th class="c-remark c-rc">Remark (Client)</th><th class="c-remark c-rd">Remark (Doer)</th>
+        <th class="c-qty">Qty</th><th class="c-rate">Rate</th><th class="c-amt">Amount</th><th class="c-vamt">Vendor Amount</th><th class="c-remark c-rc">Remark (Client)</th><th class="c-remark c-rd">Remark (Doer)</th>
       </tr></thead><tbody></tbody>`;
       const tbody = table.querySelector('tbody');
 
@@ -978,10 +866,9 @@ function addItemRow(tbody, opts){
   tr.dataset.subtitle=opts.subtitle; tr.dataset.catname=opts.catname;
   tr.dataset.custom = opts.custom ? "1" : "0";
   tr.dataset.item = opts.custom ? "" : (opts.item?.name || "");
-  tr.dataset.rid = "r" + (++ROW_SEQ);
 
   const item = opts.item || {};
-  // "How to fill" (from Library column D) — the item name text node must stay first (editItemName relies on it)
+  // "How to fill" (Library column D). The item-name text node must stay first (editItemName relies on it).
   const guideHtml = (!opts.custom && item.guide)
     ? `<span class="guide-i" title="${esc(item.guide)}" onclick="event.stopPropagation(); toggleGuide(this)">i</span><div class="guide-text">${esc(item.guide)}</div>`
     : '';
@@ -1000,6 +887,7 @@ function addItemRow(tbody, opts){
     <td class="c-qty" data-label="Qty"><input type="number" class="f-qty" min="0" step="1"></td>
     <td class="c-rate" data-label="Rate (₹)"><input type="number" class="f-rate" min="0" step="0.01"></td>
     <td class="amount-cell c-amt" data-label="Amount"><input type="text" inputmode="text" class="f-amount" placeholder="auto"></td>
+    <td class="amount-cell c-vamt" data-label="Vendor Amount"><input type="text" inputmode="text" class="f-vamount" placeholder="vendor"></td>
     <td class="c-remark" data-label="Remark (Client)"><input type="text" class="f-remark-client" placeholder="Remark to Client"></td>
     <td class="c-remark" data-label="Remark (Doer)"><input type="text" class="f-remark-doer" placeholder="Remark to Doer"></td>`;
 
@@ -1008,6 +896,7 @@ function addItemRow(tbody, opts){
   if(_amtInp){ _amtInp.addEventListener('input', ()=>{ tr.dataset.manualAmt = _amtInp.value.trim()!=="" ? "1" : "0"; }); }
   tr.querySelectorAll('input').forEach(el => el.addEventListener('input', recalc));
   attachAmountCalc(_amtInp, tr);
+  attachVendorCalc(tr.querySelector('.f-vamount'));
 
   // Ensure this tbody is registered with item Sortable (lazy init for newly created tables)
   setupItemSortable(tbody);
@@ -1105,7 +994,7 @@ function addCustomCategory(dayId, container, presetName){
     directTable.innerHTML = `<thead><tr>
       <th>Item</th><th class="c-desc">Description</th><th class="c-size">Size</th>
       <th class="c-sqft">Sqft</th><th class="c-days">Days</th>
-      <th class="c-qty">Qty</th><th class="c-rate">Rate</th><th class="c-amt">Amount</th><th class="c-remark c-rc">Remark (Client)</th><th class="c-remark c-rd">Remark (Doer)</th>
+      <th class="c-qty">Qty</th><th class="c-rate">Rate</th><th class="c-amt">Amount</th><th class="c-vamt">Vendor Amount</th><th class="c-remark c-rc">Remark (Client)</th><th class="c-remark c-rd">Remark (Doer)</th>
     </tr></thead><tbody></tbody>`;
     directTbody = directTable.querySelector('tbody');
     const btn = directBox.querySelector('.add-direct-item-btn');
@@ -1170,7 +1059,7 @@ function addCustomSubsection(dayId, catBox, container, presetTitle){
   table.innerHTML = `<thead><tr>
     <th>Item</th><th class="c-desc">Description</th><th class="c-size">Size</th>
     <th class="c-sqft">Sqft</th><th class="c-days">Days</th>
-    <th class="c-qty">Qty</th><th class="c-rate">Rate</th><th class="c-amt">Amount</th><th class="c-remark c-rc">Remark (Client)</th><th class="c-remark c-rd">Remark (Doer)</th>
+    <th class="c-qty">Qty</th><th class="c-rate">Rate</th><th class="c-amt">Amount</th><th class="c-vamt">Vendor Amount</th><th class="c-remark c-rc">Remark (Client)</th><th class="c-remark c-rd">Remark (Doer)</th>
   </tr></thead><tbody></tbody>`;
   sd.appendChild(table); applyColLabels(sd);
 
@@ -1222,7 +1111,7 @@ function addCustomSubsectionInline(dayId, catName, catBody, presetTitle){
   table.innerHTML = `<thead><tr>
     <th>Item</th><th class="c-desc">Description</th><th class="c-size">Size</th>
     <th class="c-sqft">Sqft</th><th class="c-days">Days</th>
-    <th class="c-qty">Qty</th><th class="c-rate">Rate</th><th class="c-amt">Amount</th><th class="c-remark c-rc">Remark (Client)</th><th class="c-remark c-rd">Remark (Doer)</th>
+    <th class="c-qty">Qty</th><th class="c-rate">Rate</th><th class="c-amt">Amount</th><th class="c-vamt">Vendor Amount</th><th class="c-remark c-rc">Remark (Client)</th><th class="c-remark c-rd">Remark (Doer)</th>
   </tr></thead><tbody></tbody>`;
   sd.appendChild(table); applyColLabels(sd);
 
@@ -1302,7 +1191,7 @@ function buildLogisticsCategory(dayId, catNum){
         <thead><tr>
           <th>Vehicle</th><th>Route</th>
           <th class="c-qty">Qty</th><th class="c-rate">Rate</th>
-          <th class="c-amt">Amount</th><th class="c-remark c-rc">Remark (Client)</th><th class="c-remark c-rd">Remark (Doer)</th><th style="width:30px;"></th>
+          <th class="c-amt">Amount</th><th class="c-vamt">Vendor Amount</th><th class="c-remark c-rc">Remark (Client)</th><th class="c-remark c-rd">Remark (Doer)</th><th style="width:30px;"></th>
         </tr></thead>
         <tbody></tbody>
       </table>
@@ -1349,17 +1238,17 @@ function addLogisticsRowInto(tbody, data){
     <td class="c-qty" data-label="Qty"><input type="number" class="f-qty" min="0" step="1" value="${(data&&data.qty)||''}"></td>
     <td class="c-rate" data-label="Rate (₹)"><input type="number" class="f-rate" min="0" step="0.01" value="${(data&&data.rate)||''}"></td>
     <td class="amount-cell c-amt" data-label="Amount"><input type="text" inputmode="text" class="f-amount" placeholder="auto" value="${amtVal}"></td>
+    <td class="amount-cell c-vamt" data-label="Vendor Amount"><input type="text" inputmode="text" class="f-vamount" placeholder="vendor" value="${(data && data.vendorAmount!=null && data.vendorAmount!=='') ? data.vendorAmount : ''}"></td>
     <td class="c-remark" data-label="Remark (Client)"><input type="text" class="f-remark-client" placeholder="Remark to Client" value="${(data&&(data.remarkClient!=null?data.remarkClient:data.remark))||''}"></td>
     <td class="c-remark" data-label="Remark (Doer)"><input type="text" class="f-remark-doer" placeholder="Remark to Doer" value="${(data&&data.remarkDoer)||''}"></td>
     <td><span class="row-remove" onclick="this.closest('tr').remove(); recalc();" title="Remove">&#10005;</span></td>`;
   if(data && data.manualAmt) tr.dataset.manualAmt = "1";
-  tr.dataset.rid = "r" + (++ROW_SEQ);
-  if(data && data.internal) setStored(tr, 'internal', valsFromRecord(data.internal));
   tbody.appendChild(tr);
   const _amtInp = tr.querySelector('.f-amount');
   if(_amtInp){ _amtInp.addEventListener('input', ()=>{ tr.dataset.manualAmt = _amtInp.value.trim()!=="" ? "1" : "0"; }); }
   tr.querySelectorAll('input').forEach(el=>el.addEventListener('input', recalc));
   attachAmountCalc(_amtInp, tr);
+  attachVendorCalc(tr.querySelector('.f-vamount'));
   const _sel = tr.querySelector('.f-vehicle-sel');
   if(_sel) _sel.addEventListener('change', recalc);
   return tr;
@@ -1409,6 +1298,8 @@ function fmt(n){ return '₹' + Math.round(n).toLocaleString('en-IN'); }
 
 function recalc(){
   let subtotal = 0;
+  let vSubtotal = 0;
+  document.querySelectorAll('.day-pane tr').forEach(tr => { vSubtotal += vendorAmt(tr); });
   const summaries = [];
 
   days.forEach(d => {
@@ -1440,7 +1331,7 @@ function recalc(){
           if(amtInp) amtInp.value = amt > 0 ? Math.round(amt) : "";
         }
 
-        if(qty>0 || rate>0 || amt>0){ tr.classList.add('has-value'); }
+        if(qty>0 || rate>0 || amt>0 || vendorAmt(tr)>0){ tr.classList.add('has-value'); }
         else { tr.classList.remove('has-value'); }
         catTotal += amt;
       });
@@ -1479,51 +1370,21 @@ function recalc(){
   document.getElementById('sumCgst').textContent = fmt(cgst);
   document.getElementById('sumGrand').textContent = fmt(grand);
 
+  // Vendor costing: exactly the same calculation, on Vendor Amount
+  const vPre = vSubtotal + vSubtotal*mgmtPct/100 + hotel;
+  const vGrand = vPre + vPre*(igstPct+sgstPct+cgstPct)/100;
+  const margin = subtotal - vSubtotal;
+  document.getElementById('vSubtotal').textContent = fmt(vSubtotal);
+  document.getElementById('vGrand').textContent = fmt(vGrand);
+  const mEl = document.getElementById('vMargin');
+  mEl.textContent = (margin<0?'-':'') + fmt(Math.abs(margin)) + (subtotal ? ` (${(margin/subtotal*100).toFixed(1)}%)` : '');
+  mEl.className = margin<0 ? 'neg' : (margin>0 ? 'pos' : '');
+
   applyColLabels();
-  updateViewExtras();
 }
 
 // ===================== COLLECT PAYLOAD =====================
-// Combined payload: client values exactly as before + per row `hasClient` and `internal`,
-// plus `internalSummary`. The backend writes the client sheet from client values only
-// and the separate Internal sheet from the internal values.
-const INTERNAL_KEYS_ITEM = ['description','size','remarkClient','remarkDoer','sqft','days','qty','rate','amount','useSqft','manualAmt'];
-const INTERNAL_KEYS_LOG  = ['remarkClient','remarkDoer','manualAmt','qty','rate','amount'];
-function pick(o, keys){ const r = {}; keys.forEach(k => { r[k] = o[k]; }); return r; }
-function cleanRec(o){ const r = Object.assign({}, o); delete r._has; delete r._own; return r; }
-
 function collectPayload(){
-  storeVisible();
-  const orig = VIEW;
-  paintView('client');   const c = collectRaw();
-  paintView('internal'); const i = collectRaw();
-  paintView(orig);
-  recalc();
-
-  const merge = (cList, iList, keys) => {
-    const iByRid = {}; iList.forEach(r => { iByRid[r.rid] = r; });
-    const out = [];
-    cList.forEach(r => {
-      const ir = iByRid[r.rid];
-      const hasInt = !!(ir && ir._own);
-      if(!r._has && !hasInt) return;
-      const rec = cleanRec(r);
-      rec.hasClient = !!r._has;
-      rec.internal = hasInt ? pick(ir, keys) : null;
-      out.push(rec);
-    });
-    return out;
-  };
-  const payload = c; // header, days, summary from the client pass
-  payload.lineItems = merge(c.lineItems, i.lineItems, INTERNAL_KEYS_ITEM);
-  payload.logistics = merge(c.logistics, i.logistics, INTERNAL_KEYS_LOG);
-  payload.internalSummary = i.summary;
-  return payload;
-}
-
-// Reads whatever view is currently painted. Every named row is returned (with rid);
-// _has = row has values (same rule as before), _own = has values excluding shared fields.
-function collectRaw(){
   const lineItems = [];
   days.forEach(d=>{
     const dayPane = document.getElementById(d.id);
@@ -1550,9 +1411,9 @@ function collectRaw(){
       const isManual = tr.dataset.manualAmt === "1" && manualAmtVal.trim() !== "";
       const useSqftEl = tr.querySelector('.f-usesqft');
       const useSqft = useSqftEl ? useSqftEl.checked : false;
-      // auto amount is only a display value — count it only when the user typed it
-      const hasAnyValue = !!(desc || size || sqft || dys || qty || rate || (isManual ? manualAmtVal : "") || remarkClient || remarkDoer);
-      if(itemName){
+      const vAmt = vendorVal(tr);
+      const hasAnyValue = (desc || size || sqft || dys || qty || rate || manualAmtVal || remarkClient || remarkDoer || vAmt !== "");
+      if(hasAnyValue && itemName){
         const eDays = (parseFloat(dys)||0)===0 ? 1 : parseFloat(dys);
         const sMult = (useSqft && (parseFloat(sqft)||0) > 0) ? parseFloat(sqft) : 1;
         const amt = isManual
@@ -1565,7 +1426,7 @@ function collectRaw(){
           description: desc, size: size, remarkClient: remarkClient, remarkDoer: remarkDoer,
           sqft: parseFloat(sqft)||"", days: parseFloat(dys)||"",
           qty: parseFloat(qty)||0, rate: parseFloat(rate)||0, amount: amt,
-          rid: tr.dataset.rid, _has: hasAnyValue, _own: hasAnyValue
+          vendorAmount: vAmt
         });
       }
     });
@@ -1583,13 +1444,15 @@ function collectRaw(){
     const remarkDoer = tr.querySelector('.f-remark-doer')?.value || "";
     const manualAmtVal = tr.querySelector('.f-amount')?.value || "";
     const isManual = tr.dataset.manualAmt === "1" && manualAmtVal.trim() !== "";
-    const ownVals = !!(qty || rate || (isManual ? manualAmtVal : "") || remarkClient || remarkDoer);
-    logistics.push({
-      vehicle: vehicle, route: route, remarkClient: remarkClient, remarkDoer: remarkDoer, manualAmt: isManual,
-      qty: parseFloat(qty)||0, rate: parseFloat(rate)||0,
-      amount: isManual ? (parseFloat(manualAmtVal)||0) : (parseFloat(qty)||0)*(parseFloat(rate)||0),
-      rid: tr.dataset.rid, _has: !!(vehicle || route || ownVals), _own: ownVals
-    });
+    const vAmt = vendorVal(tr);
+    if(vehicle || route || qty || rate || manualAmtVal || remarkClient || remarkDoer || vAmt !== ""){
+      logistics.push({
+        vehicle: vehicle, route: route, remarkClient: remarkClient, remarkDoer: remarkDoer, manualAmt: isManual,
+        qty: parseFloat(qty)||0, rate: parseFloat(rate)||0,
+        amount: isManual ? (parseFloat(manualAmtVal)||0) : (parseFloat(qty)||0)*(parseFloat(rate)||0),
+        vendorAmount: vAmt
+      });
+    }
   });
   return {
     header: {
@@ -1641,10 +1504,10 @@ async function submitForm(action){
     const data = await res.json();
     if(data.status === "success"){
       statusEl.className="status ok";
-      const intLink = data.internalUrl
-        ? ` &nbsp;|&nbsp; <a href="${data.internalUrl}" target="_blank">Open Internal Costing ↗</a>`
-        : ` &nbsp;|&nbsp; <span>Internal sheet could not be saved (client sheet is saved).</span>`;
-      statusEl.innerHTML = `Saved as ${data.version}. <a href="${data.sheetUrl}" target="_blank">Open Client Costing ↗</a>${intLink}`;
+      const vLink = data.vendorUrl
+        ? ` &nbsp;|&nbsp; <a href="${data.vendorUrl}" target="_blank">Open Vendor Costing ↗</a>`
+        : ` &nbsp;|&nbsp; <span>Vendor sheet could not be saved (client sheet is saved).</span>`;
+      statusEl.innerHTML = `Saved as ${data.version}. <a href="${data.sheetUrl}" target="_blank">Open Client Costing ↗</a>${vLink}`;
       if(action==='create' || action==='saveAsNew'){
         currentEventId = data.eventId;
         currentVersion = data.version;
@@ -1792,10 +1655,6 @@ async function confirmDeleteEvent(){
 }
 
 function applyLoadedData(data){
-  // Rows are rebuilt from scratch: start in client view; internal numbers go into each row's store
-  resetView();
-  if(data.internalSummary) SUM.internal = Object.assign(SUM_DEFAULT(), data.internalSummary);
-
   // header
   document.getElementById('company').value = data.header.company || "";
   document.getElementById('client').value = data.header.client || "";
@@ -1896,7 +1755,7 @@ function applyLoadedData(data){
         addLogisticsRowInto(logTbody, {
           vehicle:lg.vehicle, route:lg.route, qty:lg.qty, rate:lg.rate,
           remarkClient:(lg.remarkClient!=null?lg.remarkClient:lg.remark), remarkDoer:lg.remarkDoer,
-          manualAmt:lg.manualAmt, amount:lg.amount, internal:lg.internal
+          manualAmt:lg.manualAmt, amount:lg.amount, vendorAmount:lg.vendorAmount
         });
       });
     }
@@ -1947,8 +1806,8 @@ function fillRowFields(tr, li){
     amtEl.value = (li.amount !== undefined && li.amount !== null) ? li.amount : "";
     tr.dataset.manualAmt = "1";
   }
-  // Internal (vendor) numbers for this row — kept off-screen until the Internal view is opened
-  setStored(tr, 'internal', li.internal ? valsFromRecord(li.internal) : null);
+  const vEl = tr.querySelector('.f-vamount');
+  if(vEl) vEl.value = (li.vendorAmount !== undefined && li.vendorAmount !== null) ? li.vendorAmount : "";
 }
 
 // ===================== RENAME / EDIT (per-event only) =====================
@@ -2067,7 +1926,6 @@ async function reloadLibrary(){
   if(btn) btn.classList.add('spinning');
   showLoading('Refreshing library...');
   try {
-    setView('client'); // rows are rebuilt with client values on screen
     const snapshot = collectPayload();
 
     await loadLibrary();
@@ -2214,7 +2072,7 @@ function hasUnsavedContent(){
   const inputs = document.querySelectorAll(
     '.day-pane input.f-qty, .day-pane input.f-rate, .day-pane input.f-days, ' +
     '.day-pane input.f-sqft, .day-pane input.f-desc, .day-pane input.f-size, ' +
-    '.day-pane input.f-amount, .day-pane input.f-remark-client, .day-pane input.f-remark-doer, ' +
+    '.day-pane input.f-amount, .day-pane input.f-vamount, .day-pane input.f-remark-client, .day-pane input.f-remark-doer, ' +
     '.day-pane input.f-route, .day-pane input.f-itemname, .day-pane input.f-vehicle-other'
   );
   for(const inp of inputs){
@@ -2222,12 +2080,6 @@ function hasUnsavedContent(){
   }
   const sels = document.querySelectorAll('.day-pane select.f-vehicle-sel');
   for(const s of sels){ if((s.value||"").trim() !== "") return true; }
-  // values typed in the view that is not on screen
-  const other = VIEW === 'client' ? 'internal' : 'client';
-  for(const tr of valueRows()){
-    const v = tr._vals && tr._vals[other];
-    if(v && (v.manual || VAL_FIELDS.some(k => String(v[k]||"").trim() !== ""))) return true;
-  }
   return false;
 }
 </script>
