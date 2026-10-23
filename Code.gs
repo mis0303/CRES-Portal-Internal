@@ -855,7 +855,7 @@ function writeVersion_(ss, version, payload, mode) {
   var igstPct = taxType === 'igst' ? (s.igstPct || 0) : 0;
   var sgstPct = taxType === 'cs' ? (s.sgstPct || 0) : 0;
   var cgstPct = taxType === 'cs' ? (s.cgstPct || 0) : 0;
-  var mgmt = subtotal * mgmtPct / 100;
+  var mgmt = isVendor ? 0 : subtotal * mgmtPct / 100;   // vendor costing: no management fee
   var preGst = subtotal + mgmt + hotel;
   var igst = preGst * igstPct / 100;
   var sgst = preGst * sgstPct / 100;
@@ -867,7 +867,11 @@ function writeVersion_(ss, version, payload, mode) {
     .setFontWeight("bold").setFontColor("white").setBackground("#10243e");
   row++;
 
-  var sumRows = [
+  var sumRows = isVendor ? [
+    ["Total", subtotal],
+    ["Hotel Coordination Charges", hotel],
+    ["Sub Total before GST", preGst]
+  ] : [
     ["Subtotal", subtotal],
     ["Management Fee (" + mgmtPct + "%)", mgmt],
     ["Hotel Coordination Charges", hotel],

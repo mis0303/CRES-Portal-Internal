@@ -314,8 +314,8 @@
       <!-- Vendor costing (same calculation on Vendor Amount) -->
       <div class="vendor-box" id="vendorBox">
         <div class="vb-title">Vendor Costing</div>
-        <div class="sum-row"><span>Vendor Subtotal</span><span id="vSubtotal">&#8377;0</span></div>
-        <div class="sum-row"><span>Vendor Grand Total <small style="color:var(--muted)">(same fee &amp; tax as above)</small></span><span id="vGrand">&#8377;0</span></div>
+        <div class="sum-row"><span>Vendor Total</span><span id="vSubtotal">&#8377;0</span></div>
+        <div class="sum-row"><span>Vendor Grand Total <small style="color:var(--muted)">(no mgmt fee; hotel &amp; tax as above)</small></span><span id="vGrand">&#8377;0</span></div>
         <div class="sum-row"><span><b>Margin (Client &minus; Vendor subtotal)</b></span><span id="vMargin">&#8377;0</span></div>
       </div>
 
@@ -1371,7 +1371,7 @@ function recalc(){
   document.getElementById('sumGrand').textContent = fmt(grand);
 
   // Vendor costing: exactly the same calculation, on Vendor Amount
-  const vPre = vSubtotal + vSubtotal*mgmtPct/100 + hotel;
+  const vPre = vSubtotal + hotel;          // vendor costing: no management fee
   const vGrand = vPre + vPre*(igstPct+sgstPct+cgstPct)/100;
   const margin = subtotal - vSubtotal;
   document.getElementById('vSubtotal').textContent = fmt(vSubtotal);

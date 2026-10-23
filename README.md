@@ -8,7 +8,7 @@ logistics, versions, calculation, client sheet layout) works exactly as before.
 1. **Vendor Amount column** right after Amount, in every item table and in Logistics.
    - Typed directly (accepts sums like `15000*3`). Everything else in the row is shared.
    - Summary card shows a Vendor box: vendor subtotal, vendor grand total (same mgmt fee,
-     hotel and tax settings as the client), and margin.
+     hotel and tax as the client, but no management fee), and margin.
 2. **Two sheets on submit**, identical layout:
    - `Estimate - <event> - <client>` titled **CRES — CLIENT COSTING**, Amount column = Amount.
    - `Vendor Costing - <event> - <client>` (separate file, same folder) titled
