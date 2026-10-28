@@ -29,6 +29,8 @@ Also fixed:
    Run `testLogo` once from the Apps Script editor and allow the new permission
    (connect to an external service).
 5. **Qty** box in the portal is wider (4 digits visible).
+6. **Search** above *Select Event* in Edit mode: filters by event name, client or venue
+   (several words must all match). Enter opens the event when only one matches.
 
 ## Test setup (does not touch the live portal)
 

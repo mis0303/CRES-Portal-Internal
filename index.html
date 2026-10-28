@@ -37,6 +37,7 @@
   input:focus, select:focus{outline:2px solid var(--gold); outline-offset:1px; background:white;}
   .row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;}
   .row2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .event-search{margin-bottom:8px;}
   @media (max-width:680px){.row3, .row2{grid-template-columns:1fr;}}
 
   .day-tabs{display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; align-items:center;}
@@ -262,6 +263,7 @@
     <div class="row2">
       <div class="field">
         <label>Select Event</label>
+        <input type="search" id="eventSearch" class="event-search" placeholder="Search event, client or venue..." autocomplete="off">
         <select id="eventPicker"><option value="">Loading events...</option></select>
       </div>
       <div class="field">
@@ -1538,6 +1540,53 @@ async function submitForm(action){
 }
 
 // ===================== EDIT MODE =====================
+// Event search: filters the Select Event dropdown by event name, client or venue.
+let allEvents = [];
+function renderEventOptions(){
+  const picker = document.getElementById('eventPicker');
+  const q = (document.getElementById('eventSearch')?.value || "").trim().toLowerCase();
+  const words = q.split(/\s+/).filter(Boolean);
+  const keep = picker.value;
+  const list = allEvents.filter(ev => {
+    const hay = [ev.eventName, ev.client, ev.venue].map(x => String(x||"")).join(" ").toLowerCase();
+    return words.every(w => hay.includes(w));
+  });
+  const head = q ? `Select an event... (${list.length} found)` : "Select an event...";
+  picker.innerHTML = `<option value="">${esc(head)}</option>`;
+  list.forEach(ev=>{
+    const opt = document.createElement('option');
+    opt.value = ev.eventId;
+    opt.textContent = `${ev.eventName} — ${ev.client}` + (ev.venue ? ` (${ev.venue})` : "");
+    picker.appendChild(opt);
+  });
+  // keep the event that is already open, even if it doesn't match the search
+  if(keep && !list.some(ev => ev.eventId === keep)){
+    const ev = allEvents.find(e => e.eventId === keep);
+    if(ev){
+      const opt = document.createElement('option');
+      opt.value = ev.eventId; opt.textContent = `${ev.eventName} — ${ev.client}`;
+      picker.appendChild(opt);
+    }
+  }
+  picker.value = keep;
+  return list;
+}
+document.addEventListener('DOMContentLoaded', ()=>{
+  const box = document.getElementById('eventSearch');
+  if(!box) return;
+  box.addEventListener('input', renderEventOptions);
+  // Enter with exactly one match opens that event
+  box.addEventListener('keydown', e=>{
+    if(e.key !== 'Enter') return;
+    e.preventDefault();
+    const list = renderEventOptions();
+    const picker = document.getElementById('eventPicker');
+    if(list.length === 1 && picker.value !== list[0].eventId){
+      picker.value = list[0].eventId;
+      picker.dispatchEvent(new Event('change'));
+    }
+  });
+});
 async function loadEventList(){
   const picker = document.getElementById('eventPicker');
   picker.innerHTML = `<option value="">Loading...</option>`;
@@ -1547,13 +1596,8 @@ async function loadEventList(){
   try{
     const res = await fetch(`${SCRIPT_URL}?action=listEvents`);
     const data = await res.json();
-    picker.innerHTML = `<option value="">Select an event...</option>`;
-    data.events.forEach(ev=>{
-      const opt = document.createElement('option');
-      opt.value = ev.eventId;
-      opt.textContent = `${ev.eventName} — ${ev.client}`;
-      picker.appendChild(opt);
-    });
+    allEvents = data.events || [];
+    renderEventOptions();
   } catch(err){
     picker.innerHTML = `<option value="">Could not load events</option>`;
   }
