@@ -75,10 +75,11 @@
   .item-table td{padding:6px 4px; border-bottom:1px solid #f0eada; vertical-align:middle;}
   .item-table .item-name{font-size:13.5px; font-weight:600; min-width:160px;}
   .item-table input{padding:7px 9px; font-size:14px;}
+  .item-table td.c-qty input.f-qty{min-width:76px;}
   .item-table .amount-cell{font-size:13.5px; text-align:right; white-space:nowrap; color:var(--muted); font-weight:600;}
   .item-table tr.has-value{background:#fbf8f0;}
   .item-table tr.has-value .item-name, .item-table tr.has-value .amount-cell{color:var(--navy);}
-  .c-desc{width:16%;} .c-size{width:13%;} .c-sqft{width:10%;} .c-days{width:6%;} .c-qty{width:6%;} .c-rate{width:10%;} .c-amt{width:11%;}
+  .c-desc{width:16%;} .c-size{width:13%;} .c-sqft{width:10%;} .c-days{width:6%;} .c-qty{width:8%; min-width:84px;} .c-rate{width:10%;} .c-amt{width:11%;}
 
   /* ===== NEW: Human/service categories — hide Size, Sqft (and Days for manpower/artist) ===== */
   .item-table.no-size th.c-size, .item-table.no-size td.c-size,
@@ -428,10 +429,12 @@ function attachAmountCalc(inp, tr){
   inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); run(); inp.blur(); } });
 }
 
-// ===== Vendor Amount (new) =====
-// Typed directly (no auto calc). Accepts sums like 15000*3 or 12000+3500.
-function attachVendorCalc(inp){
+// ===== Vendor Amount =====
+// Auto = same as the client Amount. Typing a value overrides it (accepts sums like 15000*3);
+// clearing the box goes back to auto.
+function attachVendorCalc(inp, tr){
   if(!inp) return;
+  inp.addEventListener('input', ()=>{ if(tr) tr.dataset.manualVAmt = inp.value.trim()!=="" ? "1" : "0"; });
   const run = ()=>{
     const raw = inp.value;
     if(/[+\-*/xX()]/.test(raw)){
@@ -450,6 +453,12 @@ function vendorAmt(tr){
   if(raw === "") return 0;
   const n = /[+\-*/xX()]/.test(raw) ? evalAmount(raw) : parseFloat(raw);
   return (n==null || isNaN(n)) ? 0 : n;
+}
+// Saved events: new ones carry manualVAmt; older ones had only typed vendor amounts.
+function vendorIsManual(d){
+  if(!d) return false;
+  if(d.manualVAmt !== undefined) return !!d.manualVAmt;
+  return d.vendorAmount !== undefined && d.vendorAmount !== null && d.vendorAmount !== "";
 }
 function vendorVal(tr){
   const el = tr.querySelector('.f-vamount');
@@ -887,7 +896,7 @@ function addItemRow(tbody, opts){
     <td class="c-qty" data-label="Qty"><input type="number" class="f-qty" min="0" step="1"></td>
     <td class="c-rate" data-label="Rate (₹)"><input type="number" class="f-rate" min="0" step="0.01"></td>
     <td class="amount-cell c-amt" data-label="Amount"><input type="text" inputmode="text" class="f-amount" placeholder="auto"></td>
-    <td class="amount-cell c-vamt" data-label="Vendor Amount"><input type="text" inputmode="text" class="f-vamount" placeholder="vendor"></td>
+    <td class="amount-cell c-vamt" data-label="Vendor Amount"><input type="text" inputmode="text" class="f-vamount" placeholder="auto"></td>
     <td class="c-remark" data-label="Remark (Client)"><input type="text" class="f-remark-client" placeholder="Remark to Client"></td>
     <td class="c-remark" data-label="Remark (Doer)"><input type="text" class="f-remark-doer" placeholder="Remark to Doer"></td>`;
 
@@ -896,7 +905,7 @@ function addItemRow(tbody, opts){
   if(_amtInp){ _amtInp.addEventListener('input', ()=>{ tr.dataset.manualAmt = _amtInp.value.trim()!=="" ? "1" : "0"; }); }
   tr.querySelectorAll('input').forEach(el => el.addEventListener('input', recalc));
   attachAmountCalc(_amtInp, tr);
-  attachVendorCalc(tr.querySelector('.f-vamount'));
+  attachVendorCalc(tr.querySelector('.f-vamount'), tr);
 
   // Ensure this tbody is registered with item Sortable (lazy init for newly created tables)
   setupItemSortable(tbody);
@@ -1238,17 +1247,18 @@ function addLogisticsRowInto(tbody, data){
     <td class="c-qty" data-label="Qty"><input type="number" class="f-qty" min="0" step="1" value="${(data&&data.qty)||''}"></td>
     <td class="c-rate" data-label="Rate (₹)"><input type="number" class="f-rate" min="0" step="0.01" value="${(data&&data.rate)||''}"></td>
     <td class="amount-cell c-amt" data-label="Amount"><input type="text" inputmode="text" class="f-amount" placeholder="auto" value="${amtVal}"></td>
-    <td class="amount-cell c-vamt" data-label="Vendor Amount"><input type="text" inputmode="text" class="f-vamount" placeholder="vendor" value="${(data && data.vendorAmount!=null && data.vendorAmount!=='') ? data.vendorAmount : ''}"></td>
+    <td class="amount-cell c-vamt" data-label="Vendor Amount"><input type="text" inputmode="text" class="f-vamount" placeholder="auto" value="${(data && data.vendorAmount!=null && data.vendorAmount!=='') ? data.vendorAmount : ''}"></td>
     <td class="c-remark" data-label="Remark (Client)"><input type="text" class="f-remark-client" placeholder="Remark to Client" value="${(data&&(data.remarkClient!=null?data.remarkClient:data.remark))||''}"></td>
     <td class="c-remark" data-label="Remark (Doer)"><input type="text" class="f-remark-doer" placeholder="Remark to Doer" value="${(data&&data.remarkDoer)||''}"></td>
     <td><span class="row-remove" onclick="this.closest('tr').remove(); recalc();" title="Remove">&#10005;</span></td>`;
   if(data && data.manualAmt) tr.dataset.manualAmt = "1";
+  tr.dataset.manualVAmt = vendorIsManual(data) ? "1" : "0";
   tbody.appendChild(tr);
   const _amtInp = tr.querySelector('.f-amount');
   if(_amtInp){ _amtInp.addEventListener('input', ()=>{ tr.dataset.manualAmt = _amtInp.value.trim()!=="" ? "1" : "0"; }); }
   tr.querySelectorAll('input').forEach(el=>el.addEventListener('input', recalc));
   attachAmountCalc(_amtInp, tr);
-  attachVendorCalc(tr.querySelector('.f-vamount'));
+  attachVendorCalc(tr.querySelector('.f-vamount'), tr);
   const _sel = tr.querySelector('.f-vehicle-sel');
   if(_sel) _sel.addEventListener('change', recalc);
   return tr;
@@ -1299,7 +1309,6 @@ function fmt(n){ return '₹' + Math.round(n).toLocaleString('en-IN'); }
 function recalc(){
   let subtotal = 0;
   let vSubtotal = 0;
-  document.querySelectorAll('.day-pane tr').forEach(tr => { vSubtotal += vendorAmt(tr); });
   const summaries = [];
 
   days.forEach(d => {
@@ -1330,6 +1339,10 @@ function recalc(){
           amt = effectiveDays * qty * rate * sqftMult;
           if(amtInp) amtInp.value = amt > 0 ? Math.round(amt) : "";
         }
+        const vInp = tr.querySelector('.f-vamount');
+        if(vInp && tr.dataset.manualVAmt !== "1" && document.activeElement !== vInp){
+          vInp.value = amt > 0 ? Math.round(amt) : "";
+        }
 
         if(qty>0 || rate>0 || amt>0 || vendorAmt(tr)>0){ tr.classList.add('has-value'); }
         else { tr.classList.remove('has-value'); }
@@ -1346,6 +1359,7 @@ function recalc(){
     summaries.push(`<div class="sum-row"><span>${d.label}</span><span>${fmt(dayTotal)}</span></div>`);
   });
 
+  document.querySelectorAll('.day-pane tr').forEach(tr => { vSubtotal += vendorAmt(tr); });
   document.getElementById('daySummaries').innerHTML = summaries.join('');
   document.getElementById('sumSubtotal').textContent = fmt(subtotal);
 
@@ -1422,7 +1436,7 @@ function collectPayload(){
         lineItems.push({
           dayId: d.id, dayLabel: d.label, dayDate: d.date,
           category, subSection, item: itemName,
-          isCustom: isCustom, useSqft: useSqft, manualAmt: isManual,
+          isCustom: isCustom, useSqft: useSqft, manualAmt: isManual, manualVAmt: tr.dataset.manualVAmt === "1",
           description: desc, size: size, remarkClient: remarkClient, remarkDoer: remarkDoer,
           sqft: parseFloat(sqft)||"", days: parseFloat(dys)||"",
           qty: parseFloat(qty)||0, rate: parseFloat(rate)||0, amount: amt,
@@ -1447,7 +1461,7 @@ function collectPayload(){
     const vAmt = vendorVal(tr);
     if(vehicle || route || qty || rate || manualAmtVal || remarkClient || remarkDoer || vAmt !== ""){
       logistics.push({
-        vehicle: vehicle, route: route, remarkClient: remarkClient, remarkDoer: remarkDoer, manualAmt: isManual,
+        vehicle: vehicle, route: route, remarkClient: remarkClient, remarkDoer: remarkDoer, manualAmt: isManual, manualVAmt: tr.dataset.manualVAmt === "1",
         qty: parseFloat(qty)||0, rate: parseFloat(rate)||0,
         amount: isManual ? (parseFloat(manualAmtVal)||0) : (parseFloat(qty)||0)*(parseFloat(rate)||0),
         vendorAmount: vAmt
@@ -1755,7 +1769,7 @@ function applyLoadedData(data){
         addLogisticsRowInto(logTbody, {
           vehicle:lg.vehicle, route:lg.route, qty:lg.qty, rate:lg.rate,
           remarkClient:(lg.remarkClient!=null?lg.remarkClient:lg.remark), remarkDoer:lg.remarkDoer,
-          manualAmt:lg.manualAmt, amount:lg.amount, vendorAmount:lg.vendorAmount
+          manualAmt:lg.manualAmt, amount:lg.amount, vendorAmount:lg.vendorAmount, manualVAmt:lg.manualVAmt
         });
       });
     }
@@ -1807,7 +1821,8 @@ function fillRowFields(tr, li){
     tr.dataset.manualAmt = "1";
   }
   const vEl = tr.querySelector('.f-vamount');
-  if(vEl) vEl.value = (li.vendorAmount !== undefined && li.vendorAmount !== null) ? li.vendorAmount : "";
+  tr.dataset.manualVAmt = vendorIsManual(li) ? "1" : "0";
+  if(vEl) vEl.value = (tr.dataset.manualVAmt === "1" && li.vendorAmount !== undefined && li.vendorAmount !== null) ? li.vendorAmount : "";
 }
 
 // ===================== RENAME / EDIT (per-event only) =====================

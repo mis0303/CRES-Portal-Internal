@@ -9,6 +9,13 @@ var IDX_VENDOR_URL_COL = 10; // J: VendorURL
 var LIB_GUIDE_COL = 4;         // D: How to fill
 var SNAPSHOT_CHUNK = 45000;    // a Sheets cell holds max 50,000 chars
 
+// ===== LOGO (top-right of every costing sheet, columns J-K, rows 2-10) =====
+// Logo is served from the GitHub Pages site (CRES_LOGO.png in the repo root).
+// Optional: a Drive file named CRES_LOGO.png (same account) takes priority if present.
+// If neither is reachable, sheets are written without a logo.
+var LOGO_FILE_NAME = "CRES_LOGO.png";
+var LOGO_URL = "https://mis0303.github.io/CRES-Portal-Internal/CRES_LOGO.png";
+
 // Default library (used first time setupLibrary is run)
 var DEFAULT_LIBRARY = [
   { name: "Venues", subs: [
@@ -753,6 +760,8 @@ function writeVersion_(ss, version, payload, mode) {
   });
   row++;
 
+  addLogo_(sheet);
+
   // Column headers
   var COLS = ["Sr.", "Particulars", "Description", "Size", "Sqft", "Days", "Qty", "Rate", (isVendor ? "Vendor Amount" : "Amount"), "Remark (Client)", "Remark (Doer)"];
   sheet.getRange(row, 1, 1, COLS.length).setValues([COLS])
@@ -907,9 +916,49 @@ function writeVersion_(ss, version, payload, mode) {
   });
 
   // Column widths (10 & 11 = the two Remark columns)
-  var widths = [6, 32, 22, 18, 8, 8, 8, 12, 14, 20, 20];
+  var widths = [6, 32, 22, 18, 8, 8, 10, 12, 14, 20, 20];
   widths.forEach(function(w, i) { sheet.setColumnWidth(i + 1, w * 8); });
   // (hidden _Data_ snapshot is written by the caller, client file only)
+}
+
+
+// =================== LOGO ===================
+function getLogoBlob_() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty("LOGO_FILE_ID");
+  if (id) {
+    try { return DriveApp.getFileById(id).getBlob(); } catch (e) { props.deleteProperty("LOGO_FILE_ID"); }
+  }
+  var files = DriveApp.getFilesByName(LOGO_FILE_NAME);
+  if (files.hasNext()) {
+    var f = files.next();
+    props.setProperty("LOGO_FILE_ID", f.getId());
+    return f.getBlob();
+  }
+  try {
+    var res = UrlFetchApp.fetch(LOGO_URL, { muteHttpExceptions: true });
+    if (res.getResponseCode() === 200) return res.getBlob().setName(LOGO_FILE_NAME);
+  } catch (e) {}
+  return null;
+}
+
+// Places the logo centred in the blank block J2:K10 (right of Company ... Updated).
+function addLogo_(sheet) {
+  try {
+    var blob = getLogoBlob_();
+    if (!blob) return;
+    var H = 176, W = 200;                 // logo aspect ~1.14 : 1, fits rows 2-10
+    var BLOCK_W = 20 * 8 * 2;             // columns J + K width (px), see widths below
+    var img = sheet.insertImage(blob, 10, 2, Math.round((BLOCK_W - W) / 2), 6);
+    img.setWidth(W).setHeight(H);
+  } catch (err) {
+    Logger.log("Logo skipped: " + err.message);
+  }
+}
+
+// Run once from the editor to check the logo is found (View -> Logs).
+function testLogo() {
+  Logger.log(getLogoBlob_() ? "Logo found: " + LOGO_FILE_NAME : "Logo NOT found - check " + LOGO_URL);
 }
 
 

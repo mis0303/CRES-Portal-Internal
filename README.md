@@ -6,7 +6,8 @@ logistics, versions, calculation, client sheet layout) works exactly as before.
 ## What's new
 
 1. **Vendor Amount column** right after Amount, in every item table and in Logistics.
-   - Typed directly (accepts sums like `15000*3`). Everything else in the row is shared.
+   - Auto-fills with the same amount as the client Amount (same Days × Qty × Rate calculation).
+   - Type a value to override it (accepts sums like `15000*3`); clear the box to go back to auto.
    - Summary card shows a Vendor box: vendor subtotal, vendor grand total (same mgmt fee,
      hotel and tax as the client, but no management fee), and margin.
 2. **Two sheets on submit**, identical layout:
@@ -22,6 +23,12 @@ Also fixed:
 - Clicking or tabbing through the Amount box no longer freezes the auto amount (live portal has this bug).
 - Very large events no longer hit the 50,000-character cell limit when saving (hidden `_Data_`
   snapshot is split across cells; old events still load).
+
+4. **Logo** at the top-right of every Client and Vendor sheet (columns J–K, rows 2–10).
+   The script loads `CRES_LOGO.png` from this repo's GitHub Pages URL (`LOGO_URL` in `Code.gs`).
+   Run `testLogo` once from the Apps Script editor and allow the new permission
+   (connect to an external service).
+5. **Qty** box in the portal is wider (4 digits visible).
 
 ## Test setup (does not touch the live portal)
 
